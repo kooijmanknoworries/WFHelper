@@ -1,4 +1,4 @@
-# CrossLex
+# Wordfeud Helper
 
 A Dutch-first mobile Wordfeud helper that validates every crossing word.
 
