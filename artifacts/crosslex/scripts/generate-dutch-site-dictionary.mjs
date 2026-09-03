@@ -65,6 +65,10 @@ for (const letter of letters) {
 
 const sortedWords = [...words].sort();
 const retrievedAt = new Date().toISOString();
+const version = `${retrievedAt.slice(0, 10).replaceAll('-', '.')}.${retrievedAt
+  .slice(11, 23)
+  .replaceAll(':', '')
+  .replace('.', '')}`;
 const dictionarySha256 = createHash('sha256').update(sortedWords.join('\n')).digest('hex');
 const sourceSnapshotSha256 = sourceSnapshotHash.digest('hex');
 const byLength = Object.fromEntries(
@@ -77,7 +81,7 @@ const byLength = Object.fromEntries(
 await mkdir(new URL('../data/', import.meta.url), { recursive: true });
 await writeFile(
   new URL('../data/dutch-site-wordlist.ts', import.meta.url),
-  `// Generated from the published A-Z pages at wordfeudwoorden.nl.\n// Do not edit manually; rerun generate-dutch-site-dictionary.mjs.\nexport const DUTCH_SITE_WORDS = ${JSON.stringify(sortedWords, null, 2)} as const;\n\nexport const DUTCH_SITE_DICTIONARY_META = {\n  sourceName: 'Wordfeudwoorden.nl published A-Z word lists',\n  sourceBaseUrl: '${baseUrl}',\n  sourcePages: ${JSON.stringify(sourcePages, null, 2)},\n  retrievedAt: '${retrievedAt}',\n  minLength: 2,\n  maxLength: 12,\n  wordCount: ${sortedWords.length},\n  byLength: ${JSON.stringify(byLength)},\n  dictionarySha256: '${dictionarySha256}',\n  sourceSnapshotSha256: '${sourceSnapshotSha256}',\n} as const;\n`,
+  `// Generated from the published A-Z pages at wordfeudwoorden.nl.\n// Do not edit manually; rerun generate-dutch-site-dictionary.mjs.\nexport const DUTCH_SITE_WORDS = ${JSON.stringify(sortedWords, null, 2)} as const;\n\nexport const DUTCH_SITE_DICTIONARY_META = {\n  version: '${version}',\n  sourceName: 'Wordfeudwoorden.nl published A-Z word lists',\n  sourceBaseUrl: '${baseUrl}',\n  sourcePages: ${JSON.stringify(sourcePages, null, 2)},\n  retrievedAt: '${retrievedAt}',\n  minLength: 2,\n  maxLength: 12,\n  wordCount: ${sortedWords.length},\n  byLength: ${JSON.stringify(byLength)},\n  dictionarySha256: '${dictionarySha256}',\n  sourceSnapshotSha256: '${sourceSnapshotSha256}',\n} as const;\n`,
 );
 await writeFile(
   new URL('../data/README.md', import.meta.url),

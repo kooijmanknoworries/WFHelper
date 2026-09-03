@@ -3945,6 +3945,7 @@ export const DUTCH_SITE_WORDS = [
 ] as const;
 
 export const DUTCH_SITE_DICTIONARY_META = {
+  version: '2026.09.03.123130558',
   sourceName: 'Wordfeudwoorden.nl published A-Z word lists',
   sourceBaseUrl: 'https://www.wordfeudwoorden.nl',
   sourcePages: [

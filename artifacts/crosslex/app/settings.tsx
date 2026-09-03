@@ -1,19 +1,56 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage } from '@/context/LanguageContext';
-import { getDutchDictionaryStatus } from '@/lib/solver';
+import {
+  checkDutchDictionaryForUpdates,
+  getDutchDictionaryStatus,
+  subscribeToDutchDictionary,
+  type DutchDictionaryStatus,
+} from '@/lib/solver';
+
+function getDictionaryStateLabel(
+  status: DutchDictionaryStatus,
+  t: ReturnType<typeof useLanguage>['t'],
+) {
+  switch (status.updateState) {
+    case 'bundled':
+      return t('dictionaryStateBundled');
+    case 'cached':
+      return t('dictionaryStateCached');
+    case 'checking':
+      return t('dictionaryStateChecking');
+    case 'downloading':
+      return t('dictionaryStateDownloading');
+    case 'up-to-date':
+      return t('dictionaryStateUpToDate');
+    case 'updated':
+      return t('dictionaryStateUpdated');
+    case 'not-configured':
+      return t('dictionaryStateNotConfigured');
+    case 'fallback':
+      return t('dictionaryStateFallback');
+  }
+}
 
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language, setLanguage, t } = useLanguage();
-  const dictionaryStatus = getDutchDictionaryStatus();
+  const [dictionaryStatus, setDictionaryStatus] = useState(getDutchDictionaryStatus);
+
+  useEffect(() => subscribeToDutchDictionary(setDictionaryStatus), []);
+
+  const dictionaryStateLabel = getDictionaryStateLabel(dictionaryStatus, t);
+  const isChecking =
+    dictionaryStatus.updateState === 'checking' ||
+    dictionaryStatus.updateState === 'downloading';
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
@@ -83,7 +120,7 @@ export default function SettingsScreen() {
             <Text style={[styles.rowTitle, { color: colors.foreground }]}>{t('dictionary')}</Text>
             <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>
               {dictionaryStatus.ready
-                ? `${t('starterList')} · ${dictionaryStatus.wordCount.toLocaleString(language)} ${t('words')}`
+                ? `${t('dictionaryVersion', dictionaryStatus.version)} · ${dictionaryStatus.wordCount.toLocaleString(language)} ${t('words')}`
                 : dictionaryStatus.error}
             </Text>
           </View>
@@ -92,6 +129,45 @@ export default function SettingsScreen() {
             size={20}
             color={dictionaryStatus.ready ? colors.primary : colors.destructive}
           />
+        </View>
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <View style={styles.dictionaryDetails}>
+          <Text style={[styles.detailText, { color: colors.mutedForeground }]}>
+            {t('dictionarySource', dictionaryStatus.source)}
+          </Text>
+          <Text style={[styles.detailText, { color: colors.mutedForeground }]}>
+            {t('dictionaryUpdateState')}: {dictionaryStateLabel}
+          </Text>
+          {dictionaryStatus.lastCheckedAt && (
+            <Text style={[styles.detailText, { color: colors.mutedForeground }]}>
+              {t(
+                'dictionaryLastChecked',
+                new Date(dictionaryStatus.lastCheckedAt).toLocaleString(language),
+              )}
+            </Text>
+          )}
+          {dictionaryStatus.error && dictionaryStatus.updateState === 'fallback' && (
+            <Text style={[styles.errorText, { color: colors.destructive }]}>
+              {t('dictionaryUpdateError', dictionaryStatus.error)}
+            </Text>
+          )}
+          <Pressable
+            disabled={isChecking}
+            onPress={() => void checkDutchDictionaryForUpdates()}
+            style={[
+              styles.updateButton,
+              { backgroundColor: isChecking ? colors.secondary : colors.primary },
+            ]}
+          >
+            <Text
+              style={[
+                styles.updateButtonText,
+                { color: isChecking ? colors.mutedForeground : colors.primaryForeground },
+              ]}
+            >
+              {t('checkDictionary')}
+            </Text>
+          </Pressable>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.row}>
@@ -140,6 +216,11 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   rowSubtitle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
   divider: { height: 1 },
+  dictionaryDetails: { paddingVertical: 14, gap: 5 },
+  detailText: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  errorText: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  updateButton: { minHeight: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  updateButtonText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   infoBox: { borderRadius: 17, padding: 17, flexDirection: 'row', gap: 11, marginTop: 14 },
   infoText: { flex: 1, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular' },
 });

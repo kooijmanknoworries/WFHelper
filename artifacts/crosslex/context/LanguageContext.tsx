@@ -17,6 +17,20 @@ const translations = {
     dictionary: 'Woordenboek',
     starterList: 'Nederlands · gepubliceerde A-Z-lijst',
     words: 'woorden',
+    dictionaryVersion: (version: string) => `Versie ${version}`,
+    dictionarySource: (source: string) => `Bron: ${source}`,
+    dictionaryUpdateState: 'Update-status',
+    dictionaryStateBundled: 'Ingebouwde lijst actief',
+    dictionaryStateCached: 'Gedownloade lijst actief',
+    dictionaryStateChecking: 'Controleren op updates…',
+    dictionaryStateDownloading: 'Nieuwe lijst downloaden…',
+    dictionaryStateUpToDate: 'Bijgewerkt',
+    dictionaryStateUpdated: 'Bijgewerkt naar de nieuwste lijst',
+    dictionaryStateFallback: 'Update mislukt · huidige lijst behouden',
+    dictionaryStateNotConfigured: 'Geen updatebron ingesteld',
+    checkDictionary: 'Controleer op updates',
+    dictionaryLastChecked: (date: string) => `Laatst gecontroleerd: ${date}`,
+    dictionaryUpdateError: (error: string) => `Update niet toegepast: ${error}`,
     dictionaryDisclaimer:
       'Samengestelde deellijst van 2–12 letters. Dit is niet het volledige Wordfeud-woordenboek; geldige woorden buiten deze lijst kunnen ontbreken.',
     scoringRules: 'Score regels',
@@ -90,6 +104,20 @@ const translations = {
     dictionary: 'Dictionary',
     starterList: 'Dutch · published A-Z list',
     words: 'words',
+    dictionaryVersion: (version: string) => `Version ${version}`,
+    dictionarySource: (source: string) => `Source: ${source}`,
+    dictionaryUpdateState: 'Update status',
+    dictionaryStateBundled: 'Built-in list active',
+    dictionaryStateCached: 'Downloaded list active',
+    dictionaryStateChecking: 'Checking for updates…',
+    dictionaryStateDownloading: 'Downloading new list…',
+    dictionaryStateUpToDate: 'Up to date',
+    dictionaryStateUpdated: 'Updated to the latest list',
+    dictionaryStateFallback: 'Update failed · current list kept',
+    dictionaryStateNotConfigured: 'No update source configured',
+    checkDictionary: 'Check for updates',
+    dictionaryLastChecked: (date: string) => `Last checked: ${date}`,
+    dictionaryUpdateError: (error: string) => `Update not applied: ${error}`,
     dictionaryDisclaimer:
       'Curated 2–12-letter subset. This is not the complete Wordfeud dictionary; valid words outside this list may be missing.',
     scoringRules: 'Scoring rules',
@@ -157,6 +185,10 @@ const translations = {
 export type TranslationKey = keyof typeof translations.en;
 export type Translator = {
   (key: TranslationKey): string;
+  (key: 'dictionaryVersion', version: string): string;
+  (key: 'dictionarySource', source: string): string;
+  (key: 'dictionaryLastChecked', date: string): string;
+  (key: 'dictionaryUpdateError', error: string): string;
   (key: 'scanComplete', confidence: number): string;
   (key: 'recognizedSummary', boardTiles: number, rackTiles: number): string;
   (key: 'found', count: number): string;
