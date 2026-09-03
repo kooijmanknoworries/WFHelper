@@ -1,8 +1,22 @@
 import {
-  DUTCH_SITE_DICTIONARY_META,
-  DUTCH_SITE_WORDS,
-} from '../data/dutch-site-wordlist.ts';
-import { sha256Ascii } from './sha256.ts';
+  DUTCH_WORDS,
+  getActiveDutchWords,
+  getDutchDictionaryStatus,
+  validateDutchDictionaryWords,
+} from './dictionary.ts';
+export {
+  DUTCH_WORDS,
+  getDutchDictionaryStatus,
+  validateDutchDictionaryWords,
+  subscribeToDutchDictionary,
+  checkDutchDictionaryForUpdates,
+  initializeDutchDictionary,
+} from './dictionary.ts';
+export type {
+  DutchDictionaryManifest,
+  DutchDictionaryStatus,
+  DutchDictionaryUpdateState,
+} from './dictionary.ts';
 
 export const BOARD_SIZE = 15;
 export const RACK_SIZE = 7;
@@ -343,59 +357,6 @@ export const LEGACY_PROTOTYPE_DUTCH_WORDS = [
   'ZWART',
 ].filter((word) => word.length >= 2);
 
-// Wordfeud's Dutch dictionary is proprietary. Keep gameplay-confirmed words
-// missing from the published source snapshot as reviewed supplemental entries.
-const VERIFIED_WORDFEUD_DUTCH_ADDITIONS = ['AZE'] as const;
-
-export const DUTCH_WORDS = [
-  ...new Set([...DUTCH_SITE_WORDS, ...VERIFIED_WORDFEUD_DUTCH_ADDITIONS]),
-].sort();
-
-export function validateDutchDictionaryWords(words: readonly string[]) {
-  if (words.length !== DUTCH_SITE_DICTIONARY_META.wordCount) {
-    return `Dictionary count mismatch: expected ${DUTCH_SITE_DICTIONARY_META.wordCount}, received ${words.length}.`;
-  }
-  if (DUTCH_SITE_DICTIONARY_META.sourcePages.length !== 26) {
-    return 'Dictionary source metadata does not contain all 26 A-Z pages.';
-  }
-  const sourceWordCount = DUTCH_SITE_DICTIONARY_META.sourcePages.reduce(
-    (total, page) => total + page.wordCount,
-    0,
-  );
-  if (sourceWordCount !== words.length) {
-    return `Dictionary source count mismatch: pages contain ${sourceWordCount}, pack contains ${words.length}.`;
-  }
-  const seen = new Set<string>();
-  for (const word of words) {
-    if (!/^[A-Z]{2,12}$/.test(word)) return `Dictionary contains an invalid entry: ${word}.`;
-    if (seen.has(word)) return `Dictionary contains a duplicate entry: ${word}.`;
-    seen.add(word);
-  }
-  const checksum = sha256Ascii(words.join('\n'));
-  if (checksum !== DUTCH_SITE_DICTIONARY_META.dictionarySha256) {
-    return `Dictionary checksum mismatch: expected ${DUTCH_SITE_DICTIONARY_META.dictionarySha256}, received ${checksum}.`;
-  }
-  return null;
-}
-
-const DUTCH_DICTIONARY_ERROR = validateDutchDictionaryWords(DUTCH_SITE_WORDS);
-
-export function getDutchDictionaryStatus() {
-  if (DUTCH_DICTIONARY_ERROR) {
-    return {
-      ready: false as const,
-      wordCount: 0,
-      error: DUTCH_DICTIONARY_ERROR,
-      source: DUTCH_SITE_DICTIONARY_META,
-    };
-  }
-  return {
-    ready: true as const,
-    wordCount: DUTCH_WORDS.length,
-    source: DUTCH_SITE_DICTIONARY_META,
-  };
-}
-
 export function createEmptyBoard(): Board {
   return Array.from({ length: BOARD_SIZE }, () =>
     Array<string>(BOARD_SIZE).fill(''),
@@ -670,60 +631,111 @@ function isLegalPlacement(
 export function findBestMoves(
   board: Board,
   rack: string,
-  words: string[] = DUTCH_WORDS,
+  words?: string[],
   limit = 8,
 ): Move[] {
-  if (words === DUTCH_WORDS && DUTCH_DICTIONARY_ERROR) {
-    throw new Error(`Dutch dictionary failed to load: ${DUTCH_DICTIONARY_ERROR}`);
+  const selectedWords = words ?? getActiveDutchWords();
+  if (words === undefined && !getDutchDictionaryStatus().ready) {
+    throw new Error(`Dutch dictionary failed to load: ${getDutchDictionaryStatus().error}`);
   }
-  const dictionary = new Set(words.map((word) => word.toUpperCase()));
+  const dictionary = new Set(selectedWords.map((word) => word.toUpperCase()));
   const rackCounts = new Map<string, number>();
   for (const letter of rack.toUpperCase().replace(/[^A-Z?]/g, '')) {
     rackCounts.set(letter, (rackCounts.get(letter) ?? 0) + 1);
   }
 
+  const occupiedCells: Array<{ row: number; col: number; letter: string }> = [];
+  const cellsByLetter = new Map<string, Array<{ row: number; col: number }>>();
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const letter = board[row][col];
+      if (!letter) continue;
+      occupiedCells.push({ row, col, letter });
+      const cells = cellsByLetter.get(letter) ?? [];
+      cells.push({ row, col });
+      cellsByLetter.set(letter, cells);
+    }
+  }
+
+  const canBuildEntirelyFromRack = (word: string) => {
+    const used = new Map<string, number>();
+    for (const letter of word) {
+      used.set(letter, (used.get(letter) ?? 0) + 1);
+    }
+    let blanksUsed = 0;
+    for (const [letter, count] of used) {
+      blanksUsed += Math.max(0, count - (rackCounts.get(letter) ?? 0));
+    }
+    return blanksUsed <= (rackCounts.get('?') ?? 0);
+  };
+
   const moves: Move[] = [];
   for (const word of dictionary) {
     if (word.length > BOARD_SIZE || word.length < 2) continue;
-    for (const direction of ['H', 'V'] as Direction[]) {
-      for (let row = 0; row < BOARD_SIZE; row += 1) {
-        for (let col = 0; col < BOARD_SIZE; col += 1) {
-          const rackResult = canUseRack(
-            board,
-            rackCounts,
-            word,
-            row,
-            col,
-            direction,
-          );
-          if (!rackResult.valid) continue;
-          const crossWords = isLegalPlacement(
-            board,
-            word,
-            row,
-            col,
-            direction,
-            dictionary,
-          );
-          if (!crossWords) continue;
-          moves.push({
-            word,
-            score: scoreMove(
-              board,
-              word,
-              row,
-              col,
-              direction,
-              rackResult.blankIndexes ?? [],
-            ),
-            direction,
-            row,
-            col,
-            crossWords,
-            tilesUsed: rackResult.newTiles,
-          });
+    const placements: Array<{ row: number; col: number; direction: Direction }> = [];
+    const placementKeys = new Set<string>();
+    const addPlacement = (row: number, col: number, direction: Direction) => {
+      const endRow = row + (direction === 'V' ? word.length - 1 : 0);
+      const endCol = col + (direction === 'H' ? word.length - 1 : 0);
+      if (!isInside(row, col) || !isInside(endRow, endCol)) return;
+      const key = `${direction}:${row}:${col}`;
+      if (placementKeys.has(key)) return;
+      placementKeys.add(key);
+      placements.push({ row, col, direction });
+    };
+
+    if (occupiedCells.length === 0) {
+      if (!canBuildEntirelyFromRack(word)) continue;
+      const center = Math.floor(BOARD_SIZE / 2);
+      for (let index = 0; index < word.length; index += 1) {
+        addPlacement(center, center - index, 'H');
+        addPlacement(center - index, center, 'V');
+      }
+    } else {
+      for (let index = 0; index < word.length; index += 1) {
+        for (const cell of cellsByLetter.get(word[index]) ?? []) {
+          addPlacement(cell.row, cell.col - index, 'H');
+          addPlacement(cell.row - index, cell.col, 'V');
         }
       }
+
+      if (word.length <= rack.length && canBuildEntirelyFromRack(word)) {
+        for (const cell of occupiedCells) {
+          for (let index = 0; index < word.length; index += 1) {
+            addPlacement(cell.row - 1, cell.col - index, 'H');
+            addPlacement(cell.row + 1, cell.col - index, 'H');
+            addPlacement(cell.row - index, cell.col - 1, 'V');
+            addPlacement(cell.row - index, cell.col + 1, 'V');
+          }
+          addPlacement(cell.row, cell.col - word.length, 'H');
+          addPlacement(cell.row, cell.col + 1, 'H');
+          addPlacement(cell.row - word.length, cell.col, 'V');
+          addPlacement(cell.row + 1, cell.col, 'V');
+        }
+      }
+    }
+
+    for (const { row, col, direction } of placements) {
+      const rackResult = canUseRack(board, rackCounts, word, row, col, direction);
+      if (!rackResult.valid) continue;
+      const crossWords = isLegalPlacement(board, word, row, col, direction, dictionary);
+      if (!crossWords) continue;
+      moves.push({
+        word,
+        score: scoreMove(
+          board,
+          word,
+          row,
+          col,
+          direction,
+          rackResult.blankIndexes ?? [],
+        ),
+        direction,
+        row,
+        col,
+        crossWords,
+        tilesUsed: rackResult.newTiles,
+      });
     }
   }
 

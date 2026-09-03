@@ -46,7 +46,13 @@ export type DutchDictionaryStatus = {
   error?: string;
 };
 
-export const DUTCH_WORDS = [...DUTCH_SITE_WORDS];
+// Wordfeud's Dutch dictionary is proprietary. Keep gameplay-confirmed words
+// missing from the published source snapshot as reviewed supplemental entries.
+const VERIFIED_WORDFEUD_DUTCH_ADDITIONS = ['AZE'] as const;
+
+export const DUTCH_WORDS = [
+  ...new Set([...DUTCH_SITE_WORDS, ...VERIFIED_WORDFEUD_DUTCH_ADDITIONS]),
+].sort();
 
 export const BUNDLED_DUTCH_DICTIONARY_MANIFEST: DutchDictionaryManifest = {
   version: BUNDLED_DICTIONARY_VERSION,
@@ -165,7 +171,7 @@ export function validateDutchDictionaryWords(words: readonly string[]) {
   return validateWordsAgainstManifest(words, BUNDLED_DUTCH_DICTIONARY_MANIFEST);
 }
 
-const DUTCH_DICTIONARY_ERROR = validateDutchDictionaryWords(DUTCH_WORDS);
+const DUTCH_DICTIONARY_ERROR = validateDutchDictionaryWords(DUTCH_SITE_WORDS);
 
 let activeWords: string[] = DUTCH_WORDS;
 let activeManifest = BUNDLED_DUTCH_DICTIONARY_MANIFEST;
@@ -255,13 +261,20 @@ async function readCachedPack() {
   const stored = await AsyncStorage.getItem(DICTIONARY_CACHE_KEY);
   if (!stored) return null;
   const value: unknown = JSON.parse(stored);
-  if (!isRecord(value) || !Array.isArray(value.words)) {
+  if (!isRecord(value)) {
     throw new Error('Cached dictionary pack has an invalid shape.');
   }
+  const wordsValue =
+    Array.isArray(value.words)
+      ? value.words
+      : typeof value.wordsText === 'string'
+        ? value.wordsText.split('\n')
+        : undefined;
+  if (!Array.isArray(wordsValue)) throw new Error('Cached dictionary pack has an invalid shape.');
   const manifest = asManifest(value.manifest, false);
-  const error = validateWordsAgainstManifest(value.words, manifest);
+  const error = validateWordsAgainstManifest(wordsValue, manifest);
   if (error) throw new Error(error);
-  return { manifest, words: value.words as string[] };
+  return { manifest, words: wordsValue as string[] };
 }
 
 export async function initializeDutchDictionary() {
@@ -318,13 +331,22 @@ export async function checkDutchDictionaryForUpdates() {
       const packUrl = resolvePackUrl(manifestUrl, manifest.packUrl);
       const packValue = await fetchJson(packUrl);
       const wordsValue =
-        Array.isArray(packValue) ? packValue : isRecord(packValue) ? packValue.words : undefined;
+        Array.isArray(packValue)
+          ? packValue
+          : isRecord(packValue) && Array.isArray(packValue.words)
+            ? packValue.words
+            : isRecord(packValue) && typeof packValue.wordsText === 'string'
+              ? packValue.wordsText.split('\n')
+              : undefined;
       if (!Array.isArray(wordsValue)) throw new Error('Dictionary pack has an invalid shape.');
       const validationError = validateWordsAgainstManifest(wordsValue, manifest);
       if (validationError) throw new Error(validationError);
 
       const pack: DutchDictionaryPack = { manifest, words: wordsValue as string[] };
-      await AsyncStorage.setItem(DICTIONARY_CACHE_KEY, JSON.stringify(pack));
+      await AsyncStorage.setItem(
+        DICTIONARY_CACHE_KEY,
+        JSON.stringify({ manifest, wordsText: pack.words.join('\n') }),
+      );
       activatePack(pack);
       publish(statusForManifest(manifest, 'updated', checkedAt));
     } catch (error) {

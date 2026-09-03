@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
@@ -135,6 +135,18 @@ export default function SettingsScreen() {
           <Text style={[styles.detailText, { color: colors.mutedForeground }]}>
             {t('dictionarySource', dictionaryStatus.source)}
           </Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() =>
+              void Linking.openURL(
+                'https://github.com/OpenTaal/opentaal-wordlist/blob/master/LICENSE.txt',
+              )
+            }
+          >
+            <Text style={[styles.licenseLink, { color: colors.primary }]}>
+              {language === 'nl' ? 'OpenTaal-licentie bekijken' : 'View OpenTaal license'} ↗
+            </Text>
+          </Pressable>
           <Text style={[styles.detailText, { color: colors.mutedForeground }]}>
             {t('dictionaryUpdateState')}: {dictionaryStateLabel}
           </Text>
@@ -218,6 +230,7 @@ const styles = StyleSheet.create({
   divider: { height: 1 },
   dictionaryDetails: { paddingVertical: 14, gap: 5 },
   detailText: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  licenseLink: { fontSize: 11, lineHeight: 18, fontFamily: 'Inter_600SemiBold' },
   errorText: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium', marginTop: 2 },
   updateButton: { minHeight: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   updateButtonText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },

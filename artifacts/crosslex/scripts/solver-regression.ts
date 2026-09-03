@@ -2,6 +2,7 @@ import {
   DUTCH_WORDS,
   applyMove,
   createEmptyBoard,
+  createSampleBoard,
   findBestMoves,
   getDutchDictionaryStatus,
   getPremiumLabel,
@@ -13,6 +14,7 @@ import {
   DUTCH_SITE_DICTIONARY_META,
   DUTCH_SITE_WORDS,
 } from '../data/dutch-site-wordlist.ts';
+import { DUTCH_OPEN_WORDS_TEXT } from '../../api-server/src/data/dutch-open-wordlist.ts';
 
 type ExpectedMove = {
   word: string;
@@ -110,6 +112,12 @@ assert(
   'A same-count corrupted dictionary pack must fail explicitly.',
 );
 
+const openDutchWords = DUTCH_OPEN_WORDS_TEXT.split('\n');
+assert(openDutchWords.length > 300_000, 'The licensed OpenTaal pack must contain its full filtered base.');
+for (const word of ['AZE', 'ES', 'ZES']) {
+  assert(openDutchWords.includes(word), `The downloadable dictionary is missing ${word}.`);
+}
+
 function createReferenceBoard(): Board {
   const board = createEmptyBoard();
   const occupied: Array<[number, number, string]> = [
@@ -145,6 +153,13 @@ function createReferenceBoard(): Board {
   for (const [row, col, letter] of occupied) board[row][col] = letter;
   return board;
 }
+
+const performanceStartedAt = performance.now();
+findBestMoves(createSampleBoard(), 'AARTE?', openDutchWords);
+assert(
+  performance.now() - performanceStartedAt < 5_000,
+  'A full-pack solve must complete within the five-second regression budget.',
+);
 
 const referenceBoard = createReferenceBoard();
 const invalidEddy = { word: 'EDDY', row: 2, col: 13, direction: 'V' as const };
