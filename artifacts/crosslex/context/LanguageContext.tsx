@@ -60,6 +60,7 @@ const translations = {
     bestLegalMoves: 'Beste legale zetten',
     readyWhenYouAre: 'Klaar wanneer jij dat bent',
     found: (count: number) => `${count} gevonden`,
+    movePlaced: (word: string) => `Zet ${word} geplaatst.`,
     horizontal: 'Horizontaal',
     vertical: 'Verticaal',
     row: 'rij',
@@ -128,6 +129,7 @@ const translations = {
     bestLegalMoves: 'Best legal moves',
     readyWhenYouAre: 'Ready when you are',
     found: (count: number) => `${count} found`,
+    movePlaced: (word: string) => `Move ${word} placed.`,
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     row: 'row',
@@ -150,6 +152,7 @@ export type Translator = {
   (key: 'scanComplete', confidence: number): string;
   (key: 'recognizedSummary', boardTiles: number, rackTiles: number): string;
   (key: 'found', count: number): string;
+  (key: 'movePlaced', word: string): string;
   (key: 'validCrossings', words: string): string;
   (key: 'scanLimitWithTime', minutes: number, unit: string): string;
 };

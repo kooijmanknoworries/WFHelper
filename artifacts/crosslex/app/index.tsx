@@ -111,6 +111,33 @@ function getScanErrorMessage(error: unknown, t: Translator): string {
     : t('scanFallbackError');
 }
 
+function placeMove(board: Board, move: Move): { board: Board; placedLetters: string[] } {
+  const nextBoard = board.map((row) => [...row]);
+  const placedLetters: string[] = [];
+
+  for (let index = 0; index < move.word.length; index += 1) {
+    const row = move.direction === 'H' ? move.row : move.row + index;
+    const col = move.direction === 'H' ? move.col + index : move.col;
+    if (!nextBoard[row]?.[col]) {
+      nextBoard[row][col] = move.word[index];
+      placedLetters.push(move.word[index]);
+    }
+  }
+
+  return { board: nextBoard, placedLetters };
+}
+
+function removePlacedLetters(rack: string, placedLetters: string[]): string {
+  const remaining = rack.split('');
+  for (const letter of placedLetters) {
+    const letterIndex = remaining.indexOf(letter);
+    const blankIndex = remaining.indexOf('?');
+    const indexToRemove = letterIndex >= 0 ? letterIndex : blankIndex;
+    if (indexToRemove >= 0) remaining.splice(indexToRemove, 1);
+  }
+  return remaining.join('');
+}
+
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
   const tiles = [
     { letter: 'W', score: 5 },
@@ -262,7 +289,7 @@ function MoveRow({
           <View style={styles.moveScoreGroup}>
             <Text style={[styles.moveScore, { color: colors.suggestion }]}>{move.score}</Text>
             <Text style={[styles.movePoints, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>
-              points
+              {t('points')}
             </Text>
           </View>
         </View>
@@ -300,6 +327,7 @@ export default function HomeScreen() {
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [results, setResults] = useState<Move[]>([]);
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
+  const [placedMove, setPlacedMove] = useState<Move | null>(null);
   const [isSolving, setIsSolving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
@@ -329,6 +357,7 @@ export default function HomeScreen() {
     setBoard(nextBoard);
     setResults([]);
     setSelectedMove(null);
+    setPlacedMove(null);
   };
 
   const handleImport = async () => {
@@ -337,6 +366,7 @@ export default function HomeScreen() {
     setScanInfo(null);
     setResults([]);
     setSelectedMove(null);
+    setPlacedMove(null);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -406,8 +436,25 @@ export default function HomeScreen() {
     const nextResults = findBestMoves(board, rack);
     setResults(nextResults);
     setSelectedMove(nextResults[0] ?? null);
+    setPlacedMove(null);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board, rack }));
     setIsSolving(false);
+  };
+
+  const handleApplyMove = async (move: Move) => {
+    const { board: nextBoard, placedLetters } = placeMove(board, move);
+    const nextRack = removePlacedLetters(rack, placedLetters);
+    const nextResults = nextRack.length >= 2 ? findBestMoves(nextBoard, nextRack) : [];
+
+    setBoard(nextBoard);
+    setRack(nextRack);
+    setResults(nextResults);
+    setSelectedMove(null);
+    setPlacedMove(move);
+    setEditingBoard(false);
+    setSelectedCell(null);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack }));
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const loadDemo = () => {
@@ -418,6 +465,7 @@ export default function HomeScreen() {
     setScanError(null);
     setResults([]);
     setSelectedMove(null);
+    setPlacedMove(null);
     setEditingBoard(false);
     setSelectedCell(null);
   };
@@ -611,6 +659,7 @@ export default function HomeScreen() {
               setRack(value.toUpperCase().replace(/[^A-Z?]/g, '').slice(0, 7));
               setResults([]);
               setSelectedMove(null);
+              setPlacedMove(null);
             }}
             placeholder={t('rackPlaceholder')}
             placeholderTextColor={colors.mutedForeground}
@@ -649,6 +698,15 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {placedMove && (
+          <View style={[styles.placedBanner, { backgroundColor: colors.secondary }]}>
+            <Ionicons name="checkmark-circle" size={17} color={colors.primary} />
+            <Text style={[styles.placedBannerText, { color: colors.foreground }]}>
+              {t('movePlaced', placedMove.word)}
+            </Text>
+          </View>
+        )}
+
         {results.length > 0 ? (
           <View style={[styles.resultsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {results.map((move, index) => (
@@ -659,7 +717,7 @@ export default function HomeScreen() {
                 colors={colors}
                 t={t}
                 selected={selectedMove === move}
-                onPress={() => setSelectedMove(move)}
+                onPress={() => void handleApplyMove(move)}
               />
             ))}
           </View>
@@ -748,6 +806,8 @@ const styles = StyleSheet.create({
   solveButton: { minHeight: 56, borderRadius: 16, marginTop: 12, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 10 },
   solveButtonText: { flex: 1, fontSize: 14, fontFamily: 'Inter_700Bold' },
   resultsHeader: { paddingTop: 34, paddingBottom: 13, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderBottomWidth: 1 },
+  placedBanner: { borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  placedBannerText: { flex: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   resultCount: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
   resultCountText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   resultsCard: { borderRadius: 16, borderWidth: 1, marginTop: 12, overflow: 'hidden' },
