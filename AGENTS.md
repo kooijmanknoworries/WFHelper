@@ -22,13 +22,13 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 - Results are ranked by score and show coordinates, orientation, tiles used, and validated crossing words.
 - Current board and rack are saved locally with AsyncStorage.
 - A compact Dutch starter dictionary is embedded for the prototype; it is not yet a complete production Wordfeud dictionary pack.
-- A settings screen is present for the active dictionary/scoring language surface.
+- A settings screen includes a persisted app-language selector with Dutch as the default and English as the second option, alongside dictionary/scoring details.
 - The brand mark is two adjacent letter tiles: W with a 5 in the upper-right and H with a 4 in the upper-right.
 
 ## Source map
 
 - `artifacts/crosslex/app/index.tsx` — primary solver screen and interaction flow.
-- `artifacts/crosslex/app/settings.tsx` — dictionary/scoring settings surface.
+- `artifacts/crosslex/app/settings.tsx` — persisted app-language selector and dictionary/scoring settings surface.
 - `artifacts/crosslex/lib/solver.ts` — board model, dictionary, legality checks, and scoring.
 - `artifacts/crosslex/constants/colors.ts` — Wordfeud Helper visual tokens.
 - `artifacts/crosslex/assets/images/icon.png` — app icon.
