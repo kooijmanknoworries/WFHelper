@@ -25,7 +25,7 @@ export default function SettingsScreen() {
         <Ionicons name="arrow-back" size={18} color={colors.foreground} />
         <Text style={[styles.backText, { color: colors.foreground }]}>Back to solver</Text>
       </Pressable>
-      <Text style={[styles.kicker, { color: colors.primary }]}>CROSSLEX</Text>
+      <Text style={[styles.kicker, { color: colors.primary }]}>WORDFEUD HELPER</Text>
       <Text style={[styles.title, { color: colors.foreground }]}>Settings</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Fine-tune the helper as more languages and game modes arrive.
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
       <View style={[styles.infoBox, { backgroundColor: colors.muted }]}>
         <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
         <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-          CrossLex is designed around the words that touch. A future release will add full dictionary packs and camera-assisted recognition.
+          Wordfeud Helper is designed around the words that touch. A future release will add full dictionary packs and camera-assisted recognition.
         </Text>
       </View>
     </ScrollView>

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CrossLex",
-    "slug": "crosslex",
+    "name": "Wordfeud Helper",
+    "slug": "wordfeud-helper",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "crosslex",
+    "scheme": "wordfeud-helper",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false

@@ -29,15 +29,27 @@ import {
 const STORAGE_KEY = '@crosslex/position';
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const tiles = [
+    { letter: 'W', score: 5, backgroundColor: colors.primary, foregroundColor: colors.primaryForeground },
+    { letter: 'H', score: 4, backgroundColor: colors.accent, foregroundColor: colors.accentForeground },
+  ];
+
   return (
     <View style={styles.logoRow}>
-      <View style={[styles.logoTile, { backgroundColor: colors.primary }]}>
-        <View style={[styles.logoTileLine, { backgroundColor: colors.primaryForeground }]} />
-      </View>
-      <View style={[styles.logoTile, styles.logoTileOffset, { backgroundColor: colors.accent }]}>
-        <View style={[styles.logoTileLine, { backgroundColor: colors.accentForeground }]} />
-      </View>
-      <Text style={[styles.logoText, { color: colors.foreground }]}>crosslex</Text>
+      {tiles.map((tile) => (
+        <View
+          key={tile.letter}
+          style={[styles.logoTile, { backgroundColor: tile.backgroundColor }]}
+        >
+          <Text style={[styles.logoTileLetter, { color: tile.foregroundColor }]}>
+            {tile.letter}
+          </Text>
+          <Text style={[styles.logoTileScore, { color: tile.foregroundColor }]}>
+            {tile.score}
+          </Text>
+        </View>
+      ))}
+      <Text style={[styles.logoText, { color: colors.foreground }]}>Wordfeud Helper</Text>
     </View>
   );
 }
@@ -418,7 +430,7 @@ export default function HomeScreen() {
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Cross-check every word</Text>
             <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-              CrossLex will only show moves whose side words also exist in the Dutch list.
+              Wordfeud Helper will only show moves whose side words also exist in the Dutch list.
             </Text>
           </View>
         )}
@@ -437,10 +449,10 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logoRow: { flexDirection: 'row', alignItems: 'center', height: 34 },
-  logoTile: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  logoTileOffset: { marginLeft: -7, transform: [{ rotate: '12deg' }] },
-  logoTileLine: { width: 10, height: 2, borderRadius: 2, transform: [{ rotate: '-45deg' }] },
-  logoText: { fontSize: 19, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, marginLeft: 8 },
+  logoTile: { width: 30, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center', marginRight: 2 },
+  logoTileLetter: { fontSize: 18, lineHeight: 21, fontFamily: 'Inter_700Bold' },
+  logoTileScore: { position: 'absolute', top: 3, right: 4, fontSize: 8, lineHeight: 9, fontFamily: 'Inter_700Bold' },
+  logoText: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginLeft: 8 },
   iconButton: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   hero: { marginTop: 38, marginBottom: 22 },
   eyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, marginBottom: 12 },

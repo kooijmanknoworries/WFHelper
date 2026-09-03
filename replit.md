@@ -1,6 +1,6 @@
-# CrossLex
+# Wordfeud Helper
 
-A Dutch-first mobile word-game helper that ranks legal board moves and validates every crossing word.
+A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates every crossing word.
 
 ## Run & Operate
 
@@ -27,7 +27,7 @@ A Dutch-first mobile word-game helper that ranks legal board moves and validates
 
 - `artifacts/crosslex/app/` — Expo Router screens
 - `artifacts/crosslex/lib/solver.ts` — board rules, Dutch starter dictionary, move generation, and scoring
-- `artifacts/crosslex/constants/colors.ts` — mobile design tokens
+- `artifacts/crosslex/constants/colors.ts` — Wordfeud Helper mobile design tokens
 - `artifacts/crosslex/assets/images/icon.png` — app icon
 
 ## Architecture decisions
