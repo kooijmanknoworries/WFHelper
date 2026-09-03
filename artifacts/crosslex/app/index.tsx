@@ -647,6 +647,11 @@ export default function HomeScreen() {
   };
 
   const confirmClearScreen = () => {
+    if (Platform.OS === 'web') {
+      void clearScreen();
+      return;
+    }
+
     Alert.alert(t('clearScreenTitle'), t('clearScreenMessage'), [
       { text: t('cancel'), style: 'cancel' },
       { text: t('clearScreenConfirm'), style: 'destructive', onPress: () => void clearScreen() },
