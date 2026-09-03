@@ -15,9 +15,7 @@ const translations = {
     dutch: 'Nederlands',
     english: 'Engels',
     dictionary: 'Woordenboek',
-    dictionaryDetails: (wordCount: number) =>
-      `Nederlands · officiële woordenlijst · ${wordCount.toLocaleString('nl-NL')} woorden`,
-    dictionaryUnavailable: 'Nederlands woordenboek niet beschikbaar',
+    starterList: 'Nederlands · startlijst',
     scoringRules: 'Score regels',
     wordfeudMultipliers: 'Wordfeud-bordvermenigvuldigers',
     scanInfo:
@@ -86,9 +84,7 @@ const translations = {
     dutch: 'Dutch',
     english: 'English',
     dictionary: 'Dictionary',
-    dictionaryDetails: (wordCount: number) =>
-      `Dutch · official word list · ${wordCount.toLocaleString('en-US')} words`,
-    dictionaryUnavailable: 'Dutch dictionary unavailable',
+    starterList: 'Dutch · starter list',
     scoringRules: 'Scoring rules',
     wordfeudMultipliers: 'Wordfeud board multipliers',
     scanInfo:
@@ -159,7 +155,6 @@ export type Translator = {
   (key: 'movePlaced', word: string): string;
   (key: 'validCrossings', words: string): string;
   (key: 'scanLimitWithTime', minutes: number, unit: string): string;
-  (key: 'dictionaryDetails', wordCount: number): string;
 };
 
 type LanguageContextValue = {

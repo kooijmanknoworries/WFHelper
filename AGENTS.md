@@ -21,7 +21,7 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 - Move generation checks horizontal and vertical placements, board connection rules, crossing words, and the real Wordfeud letter/word multipliers.
 - Results are ranked by score and show coordinates, orientation, tiles used, and validated crossing words.
 - Current board and rack are saved locally with AsyncStorage.
-- A 457,739-entry Dutch Wordfeud dictionary is embedded offline from owner-authorized woordenlijst.org, Wordfeudwoorden.nl, and Wordfeudhelper.nl sources.
+- A compact Dutch starter dictionary is embedded for the prototype; it is not yet a complete production Wordfeud dictionary pack.
 - A settings screen includes a persisted app-language selector with Dutch as the default and English as the second option, alongside dictionary/scoring details.
 - The brand mark is two adjacent letter tiles: W with a 5 in the upper-right and H with a 4 in the upper-right.
 
@@ -44,7 +44,7 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 
 ## Next milestones
 
-1. Keep the Dutch dictionary current and expand acceptance/rejection fixtures as the source sites evolve.
+1. Replace the starter Dutch list with a complete, legally sourced dictionary pack and add unit coverage for Wordfeud board rules.
 2. Improve screenshot recognition across more devices, crops, themes, and Wordfeud versions.
 3. Add more Wordfeud languages through downloadable dictionary packs.
 4. Add optional accounts and paid features only after the core solver is reliable.

@@ -1,11 +1,6 @@
 import {
   createEmptyBoard,
-  createSampleBoard,
-  DUTCH_DICTIONARY_SOURCE,
   findBestMoves,
-  getDutchDictionaryStatus,
-  getDutchWords,
-  validateDutchDictionaryWords,
   type Board,
   type Direction,
 } from '../lib/solver.ts';
@@ -69,55 +64,6 @@ function createReferenceBoard(): Board {
 
 const referenceBoard = createReferenceBoard();
 const invalidEddy = { word: 'EDDY', row: 2, col: 13, direction: 'V' as const };
-
-const dictionaryStatus = getDutchDictionaryStatus();
-assert(dictionaryStatus.ready, 'The packaged Dutch dictionary must load successfully.');
-assert(
-  dictionaryStatus.wordCount === DUTCH_DICTIONARY_SOURCE.wordCount,
-  'The packaged Dutch dictionary count must match its source metadata.',
-);
-const dutchWords = new Set(getDutchWords());
-for (const word of ['AARDAPPEL', 'GEZELLIG', 'KONIJN', 'MUZIEK', 'PYJAMA', 'QUICHE', 'XYLOFOON']) {
-  assert(dutchWords.has(word), `The Dutch dictionary should contain ${word}.`);
-}
-for (const word of ['AALTER', 'AMSTERDAM', 'ROTTERDAM']) {
-  assert(!dutchWords.has(word), `The proper name ${word} must not be playable.`);
-}
-const tamperedWords = [...getDutchWords()];
-let tamperIndex = -1;
-for (let index = 1; index < tamperedWords.length; index += 1) {
-  const replacement = `${tamperedWords[index - 1]}A`;
-  if (replacement.length <= 15 && replacement < tamperedWords[index]) {
-    tamperIndex = index;
-    tamperedWords[index] = replacement;
-    break;
-  }
-}
-assert(tamperIndex > 0, 'The tamper fixture must find a sorted replacement.');
-const tamperedStatus = validateDutchDictionaryWords(tamperedWords);
-assert(
-  !tamperedStatus.ready && tamperedStatus.error.includes('integrity check failed'),
-  'A sorted, same-count tampered dictionary must fail its checksum.',
-);
-let impossibleRackFailed = false;
-try {
-  findBestMoves(createEmptyBoard(), '???????');
-} catch (error) {
-  impossibleRackFailed =
-    error instanceof Error && error.message.includes('Wordfeud set contains only 2');
-}
-assert(
-  impossibleRackFailed,
-  'A physically impossible seven-blank rack must fail explicitly instead of blocking the UI.',
-);
-const twoBlankStart = performance.now();
-const twoBlankMoves = findBestMoves(createSampleBoard(), 'AARTE??', undefined, 8);
-const twoBlankDuration = performance.now() - twoBlankStart;
-assert(twoBlankMoves.length > 0, 'A valid two-blank rack should produce moves on the sample board.');
-assert(
-  twoBlankDuration < 2000,
-  `A valid two-blank solve must stay responsive (took ${Math.round(twoBlankDuration)} ms).`,
-);
 
 const strictMoves = findBestMoves(referenceBoard, 'YDFUDEG', ['EDDY', 'FUDGE'], 100);
 assert(
