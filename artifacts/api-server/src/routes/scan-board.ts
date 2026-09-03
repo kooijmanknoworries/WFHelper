@@ -34,6 +34,8 @@ Rules:
 - Ignore all premium-square labels such as TL, DL, TW, DW, 2L, 3W and the small point numbers printed on tiles.
 - Do not interpret player names, scores, status text, timers, or buttons as board letters.
 - Read the player's rack at the bottom separately. Return only its uppercase letters, in left-to-right order, with no spaces. Use ? for a visibly blank rack tile.
+- Count the visible rack tiles one by one from left to right before returning the rack. A normal rack has seven separate white tile rectangles; do not skip narrow letters such as I or N between neighboring tiles. Return fewer than seven only when fewer tiles are truly visible.
+- Recently played board tiles may have a yellow, green, or other highlight. They are still occupied board cells and must be read.
 - If part of the board or rack is obscured, leave uncertain cells empty and explain that in warnings.
 - confidence is a number from 0 to 1 describing the overall recognition confidence.
 - warnings is an array of short strings for anything the user should verify.`;
@@ -111,7 +113,7 @@ router.post("/scan-board", async (req, res) => {
           content: [
             {
               type: "text",
-              text: "Read this screenshot and return the board and rack JSON. Pay special attention to the small letters on the 15x15 grid.",
+              text: "Read this screenshot and return the board and rack JSON. Pay special attention to the small letters on the 15x15 grid, then count every visible rack tile from left to right before returning the rack.",
             },
             {
               type: "image_url",

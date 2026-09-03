@@ -9,7 +9,10 @@ import {
   type Board,
   type Direction,
 } from '../lib/solver.ts';
-import { DUTCH_SITE_DICTIONARY_META } from '../data/dutch-site-wordlist.ts';
+import {
+  DUTCH_SITE_DICTIONARY_META,
+  DUTCH_SITE_WORDS,
+} from '../data/dutch-site-wordlist.ts';
 
 type ExpectedMove = {
   word: string;
@@ -66,7 +69,7 @@ const expectedPageCounts = [
 ];
 assert(dictionaryStatus.ready, 'The published A-Z dictionary must load successfully.');
 assert(
-  dictionaryStatus.wordCount === 3941 && DUTCH_SITE_DICTIONARY_META.sourcePages.length === 26,
+  dictionaryStatus.wordCount === 3942 && DUTCH_SITE_DICTIONARY_META.sourcePages.length === 26,
   'The generated dictionary must include all 26 published A-Z pages.',
 );
 assert(
@@ -92,14 +95,15 @@ for (const word of [
   'ACRYLVEZEL',
   'AMFIBRACHYS',
   'ANTICYCLISCH',
+  'AZE',
 ]) {
   assert(dictionaryWords.has(word), `The published dictionary is missing ${word}.`);
 }
 assert(
-  validateDutchDictionaryWords(DUTCH_WORDS.slice(1))?.includes('count mismatch'),
+  validateDutchDictionaryWords(DUTCH_SITE_WORDS.slice(1))?.includes('count mismatch'),
   'An incomplete dictionary pack must fail explicitly.',
 );
-const corruptedDictionary: string[] = [...DUTCH_WORDS];
+const corruptedDictionary: string[] = [...DUTCH_SITE_WORDS];
 corruptedDictionary[0] = 'AB';
 assert(
   validateDutchDictionaryWords(corruptedDictionary)?.includes('checksum mismatch'),
@@ -171,7 +175,44 @@ scoringBoard[6][8] = 'A';
 const scoredCrossing = findBestMoves(scoringBoard, 'T', ['AT'], 20).find(
   (move) => move.word === 'AT' && move.row === 7 && move.col === 7 && move.direction === 'H',
 );
-assert(scoredCrossing?.score === 4, 'The score must include both the main word and AT crossing.');
+assert(scoredCrossing?.score === 6, 'The score must include both the main word and AT crossing.');
+
+const zesReferenceRows = [
+  '.......WONE....',
+  '........S.SOK..',
+  '........J...R..',
+  '..VARENDE.B.U..',
+  '..........I.ION',
+  '.........FEUT..',
+  '..........T....',
+  '.......WEES.V..',
+  '.......I....U..',
+  '.......E....L..',
+  '......BRAND.DOG',
+  '.....CIS..A.E..',
+  '........ZAGEN..',
+  '..........E....',
+  '......TONER....',
+];
+const zesReferenceBoard: Board = zesReferenceRows.map((row) =>
+  [...row].map((cell) => (cell === '.' ? '' : cell)),
+);
+const zesMove = findBestMoves(zesReferenceBoard, 'JXVMCZS').find(
+  (move) =>
+    move.word === 'ZES' &&
+    move.row === 11 &&
+    move.col === 11 &&
+    move.direction === 'V',
+);
+assert(zesMove, 'The screenshot position must include the legal ZES move.');
+assert(
+  zesMove.crossWords.join(',') === 'AZE,ES',
+  'ZES must validate both AZE and ES as crossing words.',
+);
+assert(
+  zesMove.score === 38,
+  `ZES must score 38 with Dutch Wordfeud tile values, received ${zesMove.score}.`,
+);
 
 function assertBoardCell(board: Board, row: number, col: number, expected: string) {
   assert(

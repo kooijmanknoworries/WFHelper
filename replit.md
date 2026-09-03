@@ -34,7 +34,7 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 
 - The first build is frontend-only and keeps the current position in AsyncStorage.
 - Screenshot selection uses the native photo library and server-side vision recognition; the user verifies or corrects detected tiles in the editor.
-- The solver is dictionary-independent. Its current default is the generated 2–12-letter A–Z list published by wordfeudwoorden.nl.
+- The solver is dictionary-independent. Its current default is the generated 2–12-letter A–Z list published by wordfeudwoorden.nl plus reviewed gameplay-confirmed additions.
 - Candidate moves are rejected when any perpendicular crossing word is absent from the active dictionary.
 
 ## Product
@@ -54,7 +54,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 ## Gotchas
 
 - Keep React Native and React Native Worklets aligned with the installed Expo SDK; run Expo dependency checks after upgrades.
-- The embedded Dutch list is the reproducible 3,941-word public A–Z subset; it is not presented as the site's complete private backend dictionary.
+- The embedded Dutch list starts with the reproducible 3,941-word public A–Z subset and adds reviewed gameplay-confirmed words; it is not presented as Wordfeud's complete proprietary dictionary.
 - Screenshot recognition uses Replit AI Integrations for OpenAI on the API server; never expose its credentials in the mobile client.
 
 ## Pointers

@@ -15,22 +15,8 @@ const translations = {
     dutch: 'Nederlands',
     english: 'Engels',
     dictionary: 'Woordenboek',
-    starterList: 'Nederlands · gepubliceerde A-Z-lijst',
+    starterList: 'Nederlands · A-Z-lijst + aanvullingen',
     words: 'woorden',
-    dictionaryVersion: (version: string) => `Versie ${version}`,
-    dictionarySource: (source: string) => `Bron: ${source}`,
-    dictionaryUpdateState: 'Update-status',
-    dictionaryStateBundled: 'Ingebouwde lijst actief',
-    dictionaryStateCached: 'Gedownloade lijst actief',
-    dictionaryStateChecking: 'Controleren op updates…',
-    dictionaryStateDownloading: 'Nieuwe lijst downloaden…',
-    dictionaryStateUpToDate: 'Bijgewerkt',
-    dictionaryStateUpdated: 'Bijgewerkt naar de nieuwste lijst',
-    dictionaryStateFallback: 'Update mislukt · huidige lijst behouden',
-    dictionaryStateNotConfigured: 'Geen updatebron ingesteld',
-    checkDictionary: 'Controleer op updates',
-    dictionaryLastChecked: (date: string) => `Laatst gecontroleerd: ${date}`,
-    dictionaryUpdateError: (error: string) => `Update niet toegepast: ${error}`,
     dictionaryDisclaimer:
       'Samengestelde deellijst van 2–12 letters. Dit is niet het volledige Wordfeud-woordenboek; geldige woorden buiten deze lijst kunnen ontbreken.',
     scoringRules: 'Score regels',
@@ -74,7 +60,7 @@ const translations = {
     findingMoves: 'Legale zetten zoeken…',
     findBestMoves: 'Beste zetten vinden',
     results: 'RESULTATEN',
-    bestLegalMoves: 'Beste zetten uit de A-Z-lijst',
+    bestLegalMoves: 'Beste zetten uit de actieve woordenlijst',
     readyWhenYouAre: 'Klaar wanneer jij dat bent',
     found: (count: number) => `${count} gevonden`,
     movePlaced: (word: string) => `Zet ${word} geplaatst.`,
@@ -89,7 +75,7 @@ const translations = {
     noCrossings: 'Geen kruiswoorden gevormd',
     crossCheckTitle: 'Controleer elk woord',
     crossCheckCopy:
-      'Alle getoonde hoofd- en kruiswoorden staan in de gepubliceerde A-Z-deellijst. Woorden buiten deze lijst kunnen ontbreken.',
+      'Alle getoonde hoofd- en kruiswoorden staan in de actieve Nederlandse deellijst. Woorden buiten deze lijst kunnen ontbreken.',
     solverError: 'De woordenlijst kon niet veilig worden geladen. Probeer het later opnieuw.',
     positionsStayLocal: 'Je posities blijven in deze preview op dit apparaat.',
   },
@@ -102,22 +88,8 @@ const translations = {
     dutch: 'Dutch',
     english: 'English',
     dictionary: 'Dictionary',
-    starterList: 'Dutch · published A-Z list',
+    starterList: 'Dutch · A-Z list + additions',
     words: 'words',
-    dictionaryVersion: (version: string) => `Version ${version}`,
-    dictionarySource: (source: string) => `Source: ${source}`,
-    dictionaryUpdateState: 'Update status',
-    dictionaryStateBundled: 'Built-in list active',
-    dictionaryStateCached: 'Downloaded list active',
-    dictionaryStateChecking: 'Checking for updates…',
-    dictionaryStateDownloading: 'Downloading new list…',
-    dictionaryStateUpToDate: 'Up to date',
-    dictionaryStateUpdated: 'Updated to the latest list',
-    dictionaryStateFallback: 'Update failed · current list kept',
-    dictionaryStateNotConfigured: 'No update source configured',
-    checkDictionary: 'Check for updates',
-    dictionaryLastChecked: (date: string) => `Last checked: ${date}`,
-    dictionaryUpdateError: (error: string) => `Update not applied: ${error}`,
     dictionaryDisclaimer:
       'Curated 2–12-letter subset. This is not the complete Wordfeud dictionary; valid words outside this list may be missing.',
     scoringRules: 'Scoring rules',
@@ -161,7 +133,7 @@ const translations = {
     findingMoves: 'Finding legal moves…',
     findBestMoves: 'Find best moves',
     results: 'RESULTS',
-    bestLegalMoves: 'Best moves from the A-Z list',
+    bestLegalMoves: 'Best moves from the active dictionary',
     readyWhenYouAre: 'Ready when you are',
     found: (count: number) => `${count} found`,
     movePlaced: (word: string) => `Move ${word} placed.`,
@@ -176,7 +148,7 @@ const translations = {
     noCrossings: 'No crossing words formed',
     crossCheckTitle: 'Cross-check every word',
     crossCheckCopy:
-      'Every shown main and crossing word appears in the published A-Z subset. Words outside this list may be missing.',
+      'Every shown main and crossing word appears in the active Dutch subset. Words outside this list may be missing.',
     solverError: 'The dictionary could not be loaded safely. Please try again later.',
     positionsStayLocal: 'Your positions stay on this device in this preview.',
   },
@@ -185,10 +157,6 @@ const translations = {
 export type TranslationKey = keyof typeof translations.en;
 export type Translator = {
   (key: TranslationKey): string;
-  (key: 'dictionaryVersion', version: string): string;
-  (key: 'dictionarySource', source: string): string;
-  (key: 'dictionaryLastChecked', date: string): string;
-  (key: 'dictionaryUpdateError', error: string): string;
   (key: 'scanComplete', confidence: number): string;
   (key: 'recognizedSummary', boardTiles: number, rackTiles: number): string;
   (key: 'found', count: number): string;

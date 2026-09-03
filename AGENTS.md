@@ -18,11 +18,11 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 - Editable 15×15 board with rack input for up to seven tiles.
 - The default position is a blank 15×15 Wordfeud board using the real 3L, 2L, 3W, 2W, and center-star layout.
 - `?` is supported as a blank tile and scores zero.
-- Move generation checks horizontal and vertical placements, board connection rules, crossing words, and the real Wordfeud letter/word multipliers.
+- Move generation checks horizontal and vertical placements, board connection rules, crossing words, official Dutch tile values, and the real Wordfeud letter/word multipliers.
 - Results are ranked by score and show coordinates, orientation, tiles used, and validated crossing words.
 - Current board and rack are saved locally with AsyncStorage.
-- The embedded Dutch list contains the 3,941 unique words currently published on the A–Z pages at wordfeudwoorden.nl, covering lengths 2–12.
-- The published pages are curated lists, not an export of the site's private backend dictionary; the UI identifies them as the published A–Z list.
+- The embedded Dutch list contains the 3,941 unique words currently published on the A–Z pages at wordfeudwoorden.nl plus reviewed gameplay-confirmed additions such as `AZE`.
+- The published pages are curated lists, not an export of Wordfeud's proprietary Dutch dictionary; the UI identifies the active list as a subset.
 - A settings screen includes a persisted app-language selector with Dutch as the default and English as the second option, alongside dictionary/scoring details.
 - The brand mark is two adjacent letter tiles: W with a 5 in the upper-right and H with a 4 in the upper-right.
 
