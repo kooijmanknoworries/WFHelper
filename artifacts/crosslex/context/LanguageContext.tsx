@@ -15,7 +15,9 @@ const translations = {
     dutch: 'Nederlands',
     english: 'Engels',
     dictionary: 'Woordenboek',
-    starterList: 'Nederlands · startlijst',
+    dictionaryDetails: (wordCount: number) =>
+      `Nederlands · OpenTaal 2.20.23 · ${wordCount.toLocaleString('nl-NL')} woorden`,
+    dictionaryUnavailable: 'Nederlands woordenboek niet beschikbaar',
     scoringRules: 'Score regels',
     wordfeudMultipliers: 'Wordfeud-bordvermenigvuldigers',
     scanInfo:
@@ -84,7 +86,9 @@ const translations = {
     dutch: 'Dutch',
     english: 'English',
     dictionary: 'Dictionary',
-    starterList: 'Dutch · starter list',
+    dictionaryDetails: (wordCount: number) =>
+      `Dutch · OpenTaal 2.20.23 · ${wordCount.toLocaleString('en-US')} words`,
+    dictionaryUnavailable: 'Dutch dictionary unavailable',
     scoringRules: 'Scoring rules',
     wordfeudMultipliers: 'Wordfeud board multipliers',
     scanInfo:
@@ -155,6 +159,7 @@ export type Translator = {
   (key: 'movePlaced', word: string): string;
   (key: 'validCrossings', words: string): string;
   (key: 'scanLimitWithTime', minutes: number, unit: string): string;
+  (key: 'dictionaryDetails', wordCount: number): string;
 };
 
 type LanguageContextValue = {

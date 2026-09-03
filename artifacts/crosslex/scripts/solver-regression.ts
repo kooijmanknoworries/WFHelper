@@ -1,6 +1,9 @@
 import {
   createEmptyBoard,
+  DUTCH_DICTIONARY_SOURCE,
   findBestMoves,
+  getDutchDictionaryStatus,
+  getDutchWords,
   type Board,
   type Direction,
 } from '../lib/solver.ts';
@@ -64,6 +67,17 @@ function createReferenceBoard(): Board {
 
 const referenceBoard = createReferenceBoard();
 const invalidEddy = { word: 'EDDY', row: 2, col: 13, direction: 'V' as const };
+
+const dictionaryStatus = getDutchDictionaryStatus();
+assert(dictionaryStatus.ready, 'The packaged Dutch dictionary must load successfully.');
+assert(
+  dictionaryStatus.wordCount === DUTCH_DICTIONARY_SOURCE.wordCount,
+  'The packaged Dutch dictionary count must match its source metadata.',
+);
+const dutchWords = new Set(getDutchWords());
+for (const word of ['AARDAPPEL', 'GEZELLIG', 'KONIJN', 'MUZIEK', 'PYJAMA', 'XYLOFOON']) {
+  assert(dutchWords.has(word), `The complete Dutch dictionary should contain ${word}.`);
+}
 
 const strictMoves = findBestMoves(referenceBoard, 'YDFUDEG', ['EDDY', 'FUDGE'], 100);
 assert(
