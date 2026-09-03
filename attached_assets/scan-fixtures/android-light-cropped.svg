@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="3120" viewBox="0 0 1440 3120">
+  <rect width="1440" height="3120" fill="#f4f1ea"/>
+  <rect x="0" y="0" width="1440" height="180" fill="#285d48"/>
+  <text x="80" y="112" fill="#ffffff" font-family="sans-serif" font-size="48" font-weight="700">WORDfeud • BOARD CROP</text>
+  <rect x="120" y="330" width="1200" height="1200" rx="18" fill="#d7e5d5"/>
+  <g stroke="#9ab69c" stroke-width="4" fill="none">
+    <path d="M120 410h1200M120 490h1200M120 570h1200M120 650h1200M120 730h1200M120 810h1200M120 890h1200M120 970h1200M120 1050h1200M120 1130h1200M120 1210h1200M120 1290h1200M120 1370h1200M120 1450h1200"/>
+    <path d="M200 330v1200M280 330v1200M360 330v1200M440 330v1200M520 330v1200M600 330v1200M680 330v1200M760 330v1200M840 330v1200M920 330v1200M1000 330v1200M1080 330v1200M1160 330v1200M1240 330v1200"/>
+  </g>
+  <g fill="#79a9bb" stroke="#ffffff" stroke-width="3"><rect x="360" y="490" width="80" height="80"/><rect x="360" y="570" width="80" height="80"/><rect x="360" y="650" width="80" height="80"/><rect x="360" y="730" width="80" height="80"/><rect x="360" y="810" width="80" height="80"/><rect x="440" y="810" width="80" height="80"/><rect x="520" y="810" width="80" height="80"/><rect x="600" y="810" width="80" height="80"/></g>
+  <g fill="#17352b" font-family="sans-serif" font-size="48" font-weight="700" text-anchor="middle"><text x="400" y="548">S</text><text x="400" y="628">C</text><text x="400" y="708">A</text><text x="400" y="788">N</text><text x="400" y="868">S</text><text x="480" y="868">A</text><text x="560" y="868">F</text><text x="640" y="868">E</text></g>
+  <text x="120" y="1660" fill="#285d48" font-family="sans-serif" font-size="32" font-weight="700">RACK • SYNTHETIC / LIGHT THEME</text>
+  <g fill="#e3b866" stroke="#ffffff" stroke-width="3"><rect x="120" y="1720" width="140" height="140" rx="14"/><rect x="280" y="1720" width="140" height="140" rx="14"/><rect x="440" y="1720" width="140" height="140" rx="14"/><rect x="600" y="1720" width="140" height="140" rx="14"/><rect x="760" y="1720" width="140" height="140" rx="14"/><rect x="920" y="1720" width="140" height="140" rx="14"/><rect x="1080" y="1720" width="140" height="140" rx="14"/></g>
+  <g fill="#17352b" font-family="sans-serif" font-size="64" font-weight="700" text-anchor="middle"><text x="190" y="1810">B</text><text x="350" y="1810">R</text><text x="510" y="1810">I</text><text x="670" y="1810">G</text><text x="830" y="1810">H</text><text x="990" y="1810">T</text><text x="1150" y="1810">?</text></g>
+</svg>

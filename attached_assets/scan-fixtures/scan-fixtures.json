@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "android-dark-full",
+      "file": "android-dark-full.svg",
+      "mimeType": "image/png",
+      "device": "Android 1080x2340",
+      "viewport": { "width": 1080, "height": 2340 },
+      "crop": "full-screen",
+      "theme": "dark",
+      "expected": {
+        "board": [
+          { "row": 7, "col": 5, "letter": "H" },
+          { "row": 7, "col": 6, "letter": "E" },
+          { "row": 7, "col": 7, "letter": "L" },
+          { "row": 7, "col": 8, "letter": "L" },
+          { "row": 7, "col": 9, "letter": "O" },
+          { "row": 5, "col": 7, "letter": "W" },
+          { "row": 6, "col": 7, "letter": "A" },
+          { "row": 8, "col": 7, "letter": "R" },
+          { "row": 9, "col": 7, "letter": "D" }
+        ],
+        "rack": "TILES?",
+        "minConfidence": 0.84
+      }
+    },
+    {
+      "id": "android-light-cropped",
+      "file": "android-light-cropped.svg",
+      "mimeType": "image/png",
+      "device": "Android 1440x3120",
+      "viewport": { "width": 1440, "height": 3120 },
+      "crop": "board-and-rack",
+      "theme": "light",
+      "expected": {
+        "board": [
+          { "row": 2, "col": 3, "letter": "S" },
+          { "row": 3, "col": 3, "letter": "C" },
+          { "row": 4, "col": 3, "letter": "A" },
+          { "row": 5, "col": 3, "letter": "N" },
+          { "row": 6, "col": 3, "letter": "S" },
+          { "row": 6, "col": 4, "letter": "A" },
+          { "row": 6, "col": 5, "letter": "F" },
+          { "row": 6, "col": 6, "letter": "E" }
+        ],
+        "rack": "BRIGHT?",
+        "minConfidence": 0.78
+      }
+    },
+    {
+      "id": "ios-dark-board-crop",
+      "file": "ios-dark-board-crop.svg",
+      "mimeType": "image/png",
+      "device": "iPhone 1179x1100 crop",
+      "viewport": { "width": 1179, "height": 2556 },
+      "crop": "board-only",
+      "theme": "dark",
+      "expected": {
+        "board": [
+          { "row": 1, "col": 1, "letter": "C" },
+          { "row": 1, "col": 2, "letter": "R" },
+          { "row": 1, "col": 3, "letter": "O" },
+          { "row": 1, "col": 4, "letter": "P" },
+          { "row": 10, "col": 10, "letter": "Z" }
+        ],
+        "rack": "",
+        "minConfidence": 0.72
+      }
+    },
+    {
+      "id": "ios-light-full",
+      "file": "ios-light-full.svg",
+      "mimeType": "image/png",
+      "device": "iPhone 1170x2532",
+      "viewport": { "width": 1170, "height": 2532 },
+      "crop": "full-screen",
+      "theme": "light",
+      "expected": {
+        "board": [
+          { "row": 4, "col": 6, "letter": "T" },
+          { "row": 4, "col": 7, "letter": "E" },
+          { "row": 4, "col": 8, "letter": "S" },
+          { "row": 4, "col": 9, "letter": "T" },
+          { "row": 3, "col": 8, "letter": "L" },
+          { "row": 5, "col": 8, "letter": "A" },
+          { "row": 6, "col": 8, "letter": "N" },
+          { "row": 7, "col": 8, "letter": "D" }
+        ],
+        "rack": "VERIFY?",
+        "minConfidence": 0.88
+      }
+    }
+  ]
+}
