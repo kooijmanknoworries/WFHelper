@@ -26,8 +26,7 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 ## Where things live
 
 - `artifacts/crosslex/app/` — Expo Router screens
-- `artifacts/crosslex/lib/solver.ts` — board rules, dictionary integrity checks, move generation, and scoring
-- `artifacts/crosslex/data/` — packaged OpenTaal Dutch dictionary, source metadata, and license
+- `artifacts/crosslex/lib/solver.ts` — board rules, Dutch starter dictionary, move generation, and scoring
 - `artifacts/crosslex/constants/colors.ts` — Wordfeud Helper mobile design tokens
 - `artifacts/crosslex/assets/images/icon.png` — app icon
 
@@ -35,7 +34,7 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 
 - The first build is frontend-only and keeps the current position in AsyncStorage.
 - Screenshot selection uses the native photo library and server-side vision recognition; the user verifies or corrects detected tiles in the editor.
-- The solver is dictionary-independent and currently uses the packaged OpenTaal 2.20.23 Dutch compatibility dictionary.
+- The solver is dictionary-independent so complete licensed language packs can replace the embedded Dutch starter list.
 - Candidate moves are rejected when any perpendicular crossing word is absent from the active dictionary.
 
 ## Product
@@ -55,7 +54,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 ## Gotchas
 
 - Keep React Native and React Native Worklets aligned with the installed Expo SDK; run Expo dependency checks after upgrades.
-- The Dutch pack contains 337,502 playable OpenTaal entries and is validated before solving; Wordfeud/TaalTik's proprietary modifications are not redistributed.
+- The embedded Dutch list is a prototype dictionary, not yet a complete production Wordfeud language pack.
 - Screenshot recognition uses Replit AI Integrations for OpenAI on the API server; never expose its credentials in the mobile client.
 
 ## Pointers

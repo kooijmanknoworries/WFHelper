@@ -6,14 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage } from '@/context/LanguageContext';
-import { getDutchDictionaryStatus } from '@/lib/solver';
 
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language, setLanguage, t } = useLanguage();
-  const dictionaryStatus = getDutchDictionaryStatus();
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
@@ -81,23 +79,10 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.rowCopy}>
             <Text style={[styles.rowTitle, { color: colors.foreground }]}>{t('dictionary')}</Text>
-            <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>
-              {dictionaryStatus.ready
-                ? t('dictionaryDetails', dictionaryStatus.wordCount)
-                : t('dictionaryUnavailable')}
-            </Text>
+            <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>{t('starterList')}</Text>
           </View>
-          <Ionicons
-            name={dictionaryStatus.ready ? 'checkmark-circle' : 'alert-circle'}
-            size={20}
-            color={dictionaryStatus.ready ? colors.primary : colors.destructive}
-          />
+          <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
         </View>
-        {!dictionaryStatus.ready && (
-          <Text style={[styles.dictionaryError, { color: colors.destructive }]}>
-            {dictionaryStatus.error}
-          </Text>
-        )}
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.row}>
           <View style={[styles.rowIcon, { backgroundColor: colors.secondary }]}>
@@ -138,7 +123,6 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1, marginLeft: 12 },
   rowTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   rowSubtitle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  dictionaryError: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium', marginBottom: 12 },
   divider: { height: 1 },
   infoBox: { borderRadius: 17, padding: 17, flexDirection: 'row', gap: 11, marginTop: 14 },
   infoText: { flex: 1, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular' },
