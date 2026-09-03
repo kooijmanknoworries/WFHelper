@@ -20,6 +20,12 @@ export type Move = {
   tilesUsed: number;
 };
 
+export type AppliedMove = {
+  board: Board;
+  rack: string;
+  placedLetters: string[];
+};
+
 const LETTER_VALUES: Record<string, number> = {
   A: 1,
   B: 4,
@@ -397,6 +403,37 @@ export function createSampleBoard(): Board {
   board[5][7] = 'B';
   board[6][7] = 'O';
   return board;
+}
+
+function removePlacedLetters(rack: string, placedLetters: string[]): string {
+  const remaining = rack.split('');
+  for (const letter of placedLetters) {
+    const letterIndex = remaining.indexOf(letter);
+    const blankIndex = remaining.indexOf('?');
+    const indexToRemove = letterIndex >= 0 ? letterIndex : blankIndex;
+    if (indexToRemove >= 0) remaining.splice(indexToRemove, 1);
+  }
+  return remaining.join('');
+}
+
+export function applyMove(board: Board, rack: string, move: Move): AppliedMove {
+  const nextBoard = board.map((row) => [...row]);
+  const placedLetters: string[] = [];
+
+  for (let index = 0; index < move.word.length; index += 1) {
+    const row = move.direction === 'H' ? move.row : move.row + index;
+    const col = move.direction === 'H' ? move.col + index : move.col;
+    if (!nextBoard[row]?.[col]) {
+      nextBoard[row][col] = move.word[index];
+      placedLetters.push(move.word[index]);
+    }
+  }
+
+  return {
+    board: nextBoard,
+    rack: removePlacedLetters(rack, placedLetters),
+    placedLetters,
+  };
 }
 
 function isInside(row: number, col: number) {

@@ -25,6 +25,7 @@ import { useColors } from '@/hooks/useColors';
 import { useLanguage, type Translator } from '@/context/LanguageContext';
 import {
   BOARD_SIZE,
+  applyMove,
   Board,
   createEmptyBoard,
   createSampleBoard,
@@ -109,33 +110,6 @@ function getScanErrorMessage(error: unknown, t: Translator): string {
   return error instanceof Error
     ? error.message
     : t('scanFallbackError');
-}
-
-function placeMove(board: Board, move: Move): { board: Board; placedLetters: string[] } {
-  const nextBoard = board.map((row) => [...row]);
-  const placedLetters: string[] = [];
-
-  for (let index = 0; index < move.word.length; index += 1) {
-    const row = move.direction === 'H' ? move.row : move.row + index;
-    const col = move.direction === 'H' ? move.col + index : move.col;
-    if (!nextBoard[row]?.[col]) {
-      nextBoard[row][col] = move.word[index];
-      placedLetters.push(move.word[index]);
-    }
-  }
-
-  return { board: nextBoard, placedLetters };
-}
-
-function removePlacedLetters(rack: string, placedLetters: string[]): string {
-  const remaining = rack.split('');
-  for (const letter of placedLetters) {
-    const letterIndex = remaining.indexOf(letter);
-    const blankIndex = remaining.indexOf('?');
-    const indexToRemove = letterIndex >= 0 ? letterIndex : blankIndex;
-    if (indexToRemove >= 0) remaining.splice(indexToRemove, 1);
-  }
-  return remaining.join('');
 }
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
@@ -451,8 +425,7 @@ export default function HomeScreen() {
   const handleApplyMove = async (move: Move) => {
     setScanError(null);
     try {
-      const { board: nextBoard, placedLetters } = placeMove(board, move);
-      const nextRack = removePlacedLetters(rack, placedLetters);
+      const { board: nextBoard, rack: nextRack } = applyMove(board, rack, move);
       const nextResults = nextRack.length >= 2 ? findBestMoves(nextBoard, nextRack) : [];
 
       setBoard(nextBoard);

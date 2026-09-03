@@ -1,5 +1,6 @@
 import {
   DUTCH_WORDS,
+  applyMove,
   createEmptyBoard,
   findBestMoves,
   getDutchDictionaryStatus,
@@ -171,5 +172,76 @@ const scoredCrossing = findBestMoves(scoringBoard, 'T', ['AT'], 20).find(
   (move) => move.word === 'AT' && move.row === 7 && move.col === 7 && move.direction === 'H',
 );
 assert(scoredCrossing?.score === 4, 'The score must include both the main word and AT crossing.');
+
+function assertBoardCell(board: Board, row: number, col: number, expected: string) {
+  assert(
+    board[row]?.[col] === expected,
+    `Expected board cell ${row}:${col} to contain ${expected || 'an empty value'}.`,
+  );
+}
+
+const horizontalBoard = createEmptyBoard();
+horizontalBoard[7][7] = 'A';
+horizontalBoard[6][7] = 'N';
+horizontalBoard[8][7] = 'S';
+const horizontalMove = {
+  word: 'ATEN',
+  score: 0,
+  direction: 'H' as const,
+  row: 7,
+  col: 7,
+  crossWords: [],
+  tilesUsed: 3,
+};
+const horizontalApplied = applyMove(horizontalBoard, 'TEN', horizontalMove);
+assert(horizontalApplied.rack === '', 'Horizontal placement must consume all normal rack tiles.');
+assert(horizontalApplied.placedLetters.join('') === 'TEN', 'Horizontal placement must report only newly placed letters.');
+assertBoardCell(horizontalApplied.board, 7, 7, 'A');
+assertBoardCell(horizontalApplied.board, 7, 8, 'T');
+assertBoardCell(horizontalApplied.board, 7, 9, 'E');
+assertBoardCell(horizontalApplied.board, 7, 10, 'N');
+assertBoardCell(horizontalApplied.board, 6, 7, 'N');
+assertBoardCell(horizontalApplied.board, 8, 7, 'S');
+assertBoardCell(horizontalBoard, 7, 8, '');
+assertBoardCell(horizontalBoard, 7, 9, '');
+assertBoardCell(horizontalBoard, 7, 10, '');
+
+const verticalBoard = createEmptyBoard();
+verticalBoard[5][5] = 'B';
+verticalBoard[5][4] = 'L';
+verticalBoard[5][6] = 'R';
+const verticalMove = {
+  word: 'BOS',
+  score: 0,
+  direction: 'V' as const,
+  row: 5,
+  col: 5,
+  crossWords: [],
+  tilesUsed: 2,
+};
+const verticalApplied = applyMove(verticalBoard, 'O?', verticalMove);
+assert(verticalApplied.rack === '', 'Vertical placement must consume normal and blank rack tiles.');
+assert(verticalApplied.placedLetters.join('') === 'OS', 'Vertical placement must report newly placed letters.');
+assertBoardCell(verticalApplied.board, 5, 5, 'B');
+assertBoardCell(verticalApplied.board, 6, 5, 'O');
+assertBoardCell(verticalApplied.board, 7, 5, 'S');
+assertBoardCell(verticalApplied.board, 5, 4, 'L');
+assertBoardCell(verticalApplied.board, 5, 6, 'R');
+assertBoardCell(verticalBoard, 6, 5, '');
+assertBoardCell(verticalBoard, 7, 5, '');
+
+function assertSavedPositionMatchesVisibleResult(applied: ReturnType<typeof applyMove>) {
+  const savedPosition = JSON.parse(
+    JSON.stringify({ board: applied.board, rack: applied.rack }),
+  ) as { board: Board; rack: string };
+  assert(
+    JSON.stringify(savedPosition) ===
+      JSON.stringify({ board: applied.board, rack: applied.rack }),
+    'The saved position must match the visible board and rack after applying a move.',
+  );
+}
+
+assertSavedPositionMatchesVisibleResult(horizontalApplied);
+assertSavedPositionMatchesVisibleResult(verticalApplied);
 
 console.log('Solver regression checks passed.');
