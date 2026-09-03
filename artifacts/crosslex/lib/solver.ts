@@ -1,3 +1,8 @@
+import {
+  DUTCH_DICTIONARY_METADATA,
+  DUTCH_WORDS as PACKAGED_DUTCH_WORDS,
+} from '../data/dutch-wordlist.ts';
+
 export const BOARD_SIZE = 15;
 export const RACK_SIZE = 7;
 
@@ -118,7 +123,7 @@ export function getPremiumLabel(row: number, col: number): PremiumLabel | '' {
 // A compact Dutch starter list keeps the first build fully offline. The
 // dictionary is intentionally isolated so a complete licensed list can be
 // swapped in without changing the solver or UI.
-export const DUTCH_WORDS = [
+const STARTER_DUTCH_WORDS = [
   'AAI',
   'AAN',
   'AARD',
@@ -330,6 +335,98 @@ export const DUTCH_WORDS = [
   'ZWART',
 ].filter((word) => word.length >= 2);
 
+export const DUTCH_DICTIONARY_SOURCE = {
+  name: 'CrossLex Nederlandse Wordfeud-woordenlijst',
+  version: DUTCH_DICTIONARY_METADATA.version,
+  wordCount: DUTCH_DICTIONARY_METADATA.wordCount,
+  license: 'OpenTaal BSD-3-Clause/CC BY 3.0; owner-authorized site entries',
+  sourceUrls: DUTCH_DICTIONARY_METADATA.sources,
+} as const;
+
+const REQUIRED_DUTCH_WORDS = [
+  'AARDAPPEL',
+  'FIETS',
+  'GEZELLIG',
+  'KONIJN',
+  'MUZIEK',
+  'PYJAMA',
+  'QUICHE',
+  'XYLOFOON',
+  'ZWAARD',
+] as const;
+const REJECTED_PROPER_NAMES = ['AALTER', 'AMSTERDAM', 'ROTTERDAM'] as const;
+
+export type DutchDictionaryStatus =
+  | { ready: true; wordCount: number; source: typeof DUTCH_DICTIONARY_SOURCE }
+  | { ready: false; error: string; source: typeof DUTCH_DICTIONARY_SOURCE };
+
+export class DictionaryLoadError extends Error {
+  constructor(message: string) {
+    super(`Dutch dictionary unavailable: ${message}`);
+    this.name = 'DictionaryLoadError';
+  }
+}
+
+let dictionaryStatus: DutchDictionaryStatus | null = null;
+
+function validateDutchDictionary(): DutchDictionaryStatus {
+  const words = PACKAGED_DUTCH_WORDS;
+  const actualWordCount: number = words.length;
+  const expectedWordCount: number = DUTCH_DICTIONARY_SOURCE.wordCount;
+  if (actualWordCount !== expectedWordCount) {
+    return {
+      ready: false,
+      error: `expected ${expectedWordCount.toLocaleString()} words, found ${actualWordCount.toLocaleString()}`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  let previous = '';
+  for (const word of words) {
+    if (!/^[A-Z]{2,15}$/.test(word)) {
+      return { ready: false, error: `invalid playable entry "${word}"`, source: DUTCH_DICTIONARY_SOURCE };
+    }
+    if (word <= previous) {
+      return {
+        ready: false,
+        error: `word pack is not strictly sorted or contains a duplicate near "${word}"`,
+        source: DUTCH_DICTIONARY_SOURCE,
+      };
+    }
+    previous = word;
+  }
+  const wordSet = new Set<string>(words);
+  const missingWord = REQUIRED_DUTCH_WORDS.find((word) => !wordSet.has(word));
+  if (missingWord) {
+    return {
+      ready: false,
+      error: `required representative word "${missingWord}" is missing`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  const invalidName = REJECTED_PROPER_NAMES.find((word) => wordSet.has(word));
+  if (invalidName) {
+    return {
+      ready: false,
+      error: `rejected proper name "${invalidName}" is present`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  return { ready: true, wordCount: actualWordCount, source: DUTCH_DICTIONARY_SOURCE };
+}
+
+export function getDutchDictionaryStatus(): DutchDictionaryStatus {
+  dictionaryStatus ??= validateDutchDictionary();
+  return dictionaryStatus;
+}
+
+export function getDutchWords(): readonly string[] {
+  const status = getDutchDictionaryStatus();
+  if (!status.ready) throw new DictionaryLoadError(status.error);
+  return PACKAGED_DUTCH_WORDS;
+}
+
+export const DUTCH_WORDS = PACKAGED_DUTCH_WORDS;
+
 export function createEmptyBoard(): Board {
   return Array.from({ length: BOARD_SIZE }, () =>
     Array<string>(BOARD_SIZE).fill(''),
@@ -502,6 +599,38 @@ function canUseRack(
   return { valid: newTiles > 0, newTiles, blankIndexes };
 }
 
+function createLetterCounts(letters: Iterable<string>) {
+  const counts = new Uint8Array(26);
+  for (const letter of letters) {
+    const index = letter.charCodeAt(0) - 65;
+    if (index >= 0 && index < counts.length) counts[index] += 1;
+  }
+  return counts;
+}
+
+function canSupplyWord(
+  wordCounts: Uint8Array,
+  rackCounts: Uint8Array,
+  boardCounts: Uint8Array,
+  blankCount: number,
+) {
+  let blanksNeeded = 0;
+  for (let index = 0; index < wordCounts.length; index += 1) {
+    blanksNeeded += Math.max(0, wordCounts[index] - rackCounts[index] - boardCounts[index]);
+    if (blanksNeeded > blankCount) return false;
+  }
+  return true;
+}
+
+function getBoardLetterCounts(board: Board) {
+  const all = createLetterCounts(board.flat());
+  const rows = board.map((row) => createLetterCounts(row));
+  const columns = Array.from({ length: BOARD_SIZE }, (_, col) =>
+    createLetterCounts(board.map((row) => row[col])),
+  );
+  return { all, rows, columns };
+}
+
 function isLegalPlacement(
   board: Board,
   word: string,
@@ -573,21 +702,31 @@ function isLegalPlacement(
 export function findBestMoves(
   board: Board,
   rack: string,
-  words: string[] = DUTCH_WORDS,
+  words: readonly string[] = getDutchWords(),
   limit = 8,
 ): Move[] {
   const dictionary = new Set(words.map((word) => word.toUpperCase()));
   const rackCounts = new Map<string, number>();
-  for (const letter of rack.toUpperCase().replace(/[^A-Z?]/g, '')) {
+  const normalizedRack = rack.toUpperCase().replace(/[^A-Z?]/g, '');
+  for (const letter of normalizedRack) {
     rackCounts.set(letter, (rackCounts.get(letter) ?? 0) + 1);
   }
+  const rackLetterCounts = createLetterCounts(normalizedRack);
+  const blankCount = rackCounts.get('?') ?? 0;
+  const boardLetterCounts = getBoardLetterCounts(board);
 
   const moves: Move[] = [];
   for (const word of dictionary) {
     if (word.length > BOARD_SIZE || word.length < 2) continue;
+    const wordCounts = createLetterCounts(word);
+    if (!canSupplyWord(wordCounts, rackLetterCounts, boardLetterCounts.all, blankCount)) continue;
     for (const direction of ['H', 'V'] as Direction[]) {
-      for (let row = 0; row < BOARD_SIZE; row += 1) {
-        for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const lineCounts = direction === 'H' ? boardLetterCounts.rows : boardLetterCounts.columns;
+      for (let line = 0; line < BOARD_SIZE; line += 1) {
+        if (!canSupplyWord(wordCounts, rackLetterCounts, lineCounts[line], blankCount)) continue;
+        for (let start = 0; start <= BOARD_SIZE - word.length; start += 1) {
+          const row = direction === 'H' ? line : start;
+          const col = direction === 'H' ? start : line;
           const rackResult = canUseRack(
             board,
             rackCounts,

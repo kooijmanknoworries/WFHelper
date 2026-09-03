@@ -431,30 +431,41 @@ export default function HomeScreen() {
 
   const handleSolve = async () => {
     setIsSolving(true);
+    setScanError(null);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await new Promise((resolve) => setTimeout(resolve, 180));
-    const nextResults = findBestMoves(board, rack);
-    setResults(nextResults);
-    setSelectedMove(nextResults[0] ?? null);
-    setPlacedMove(null);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board, rack }));
-    setIsSolving(false);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      const nextResults = findBestMoves(board, rack);
+      setResults(nextResults);
+      setSelectedMove(nextResults[0] ?? null);
+      setPlacedMove(null);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board, rack }));
+    } catch (error) {
+      setScanError(getScanErrorMessage(error, t));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsSolving(false);
+    }
   };
 
   const handleApplyMove = async (move: Move) => {
-    const { board: nextBoard, placedLetters } = placeMove(board, move);
-    const nextRack = removePlacedLetters(rack, placedLetters);
-    const nextResults = nextRack.length >= 2 ? findBestMoves(nextBoard, nextRack) : [];
-
-    setBoard(nextBoard);
-    setRack(nextRack);
-    setResults(nextResults);
-    setSelectedMove(null);
-    setPlacedMove(move);
-    setEditingBoard(false);
-    setSelectedCell(null);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack }));
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { board: nextBoard, placedLetters } = placeMove(board, move);
+      const nextRack = removePlacedLetters(rack, placedLetters);
+      const nextResults = nextRack.length >= 2 ? findBestMoves(nextBoard, nextRack) : [];
+      setBoard(nextBoard);
+      setRack(nextRack);
+      setResults(nextResults);
+      setSelectedMove(null);
+      setPlacedMove(move);
+      setEditingBoard(false);
+      setSelectedCell(null);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack }));
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      setScanError(getScanErrorMessage(error, t));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   const loadDemo = () => {

@@ -1,0 +1,11 @@
+OpenTaal Dutch word list
+
+Copyright (c) OpenTaal contributors.
+
+This dictionary uses OpenTaal under the Revised BSD License (3-clause) and/or
+Creative Commons Attribution 3.0 Unported. The complete upstream license terms
+are available at:
+
+https://github.com/OpenTaal/opentaal-wordlist/blob/master/LICENSE.txt
+
+Source: https://github.com/OpenTaal/opentaal-wordlist

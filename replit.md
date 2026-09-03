@@ -26,7 +26,7 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 ## Where things live
 
 - `artifacts/crosslex/app/` — Expo Router screens
-- `artifacts/crosslex/lib/solver.ts` — board rules, Dutch starter dictionary, move generation, and scoring
+- `artifacts/crosslex/lib/solver.ts` — board rules, validated Dutch dictionary loading, move generation, and scoring
 - `artifacts/crosslex/constants/colors.ts` — Wordfeud Helper mobile design tokens
 - `artifacts/crosslex/assets/images/icon.png` — app icon
 
@@ -54,7 +54,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 ## Gotchas
 
 - Keep React Native and React Native Worklets aligned with the installed Expo SDK; run Expo dependency checks after upgrades.
-- The embedded Dutch list is a prototype dictionary, not yet a complete production Wordfeud language pack.
+- The embedded Dutch pack is generated from OpenTaal plus owner-authorized Wordfeudwoorden.nl and Wordfeudhelper.nl entries; generation rejects proper names and malformed entries.
 - Screenshot recognition uses Replit AI Integrations for OpenAI on the API server; never expose its credentials in the mobile client.
 
 ## Pointers
