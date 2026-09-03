@@ -22,6 +22,7 @@ import {
   type ScanBoardInputMimeType as ScanBoardMimeType,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { useLanguage, type Translator } from '@/context/LanguageContext';
 import {
   BOARD_SIZE,
   Board,
@@ -85,7 +86,7 @@ async function getDeviceId(): Promise<string> {
   return deviceIdPromise;
 }
 
-function getScanErrorMessage(error: unknown): string {
+function getScanErrorMessage(error: unknown, t: Translator): string {
   if (
     error &&
     typeof error === 'object' &&
@@ -100,16 +101,14 @@ function getScanErrorMessage(error: unknown): string {
         : undefined;
     if (typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)) {
       const minutes = Math.ceil(retryAfterSeconds / 60);
-      return `Scan limit reached. Please try again in about ${minutes} ${
-        minutes === 1 ? 'minute' : 'minutes'
-      }.`;
+      return t('scanLimitWithTime', minutes, minutes === 1 ? t('minute') : t('minutes'));
     }
-    return 'Scan limit reached. Please try again later.';
+    return t('scanLimitTryAgain');
   }
 
   return error instanceof Error
     ? error.message
-    : 'The screenshot could not be scanned. Please try again.';
+    : t('scanFallbackError');
 }
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
@@ -227,12 +226,14 @@ function MoveRow({
   move,
   rank,
   colors,
+  t,
   selected,
   onPress,
 }: {
   move: Move;
   rank: number;
   colors: ReturnType<typeof useColors>;
+  t: Translator;
   selected: boolean;
   onPress: () => void;
 }) {
@@ -268,12 +269,13 @@ function MoveRow({
         {selected && (
           <>
             <Text style={[styles.moveMeta, { color: colors.primaryForeground }]}>
-              {move.direction === 'H' ? 'Horizontal' : 'Vertical'} · row {move.row + 1}, col {move.col + 1} · {move.tilesUsed} new {move.tilesUsed === 1 ? 'tile' : 'tiles'}
+              {move.direction === 'H' ? t('horizontal') : t('vertical')} · {t('row')} {move.row + 1}, {t('column')} {move.col + 1} · {move.tilesUsed}{' '}
+              {move.tilesUsed === 1 ? t('newTile') : t('newTiles')}
             </Text>
             <Text style={[styles.crossSummary, { color: colors.primaryForeground }]}>
               {move.crossWords.length > 0
-                ? `Valid crossings: ${move.crossWords.join(', ')}`
-                : 'No crossing words formed'}
+                ? t('validCrossings', move.crossWords.join(', '))
+                : t('noCrossings')}
             </Text>
           </>
         )}
@@ -289,6 +291,7 @@ function MoveRow({
 
 export default function HomeScreen() {
   const colors = useColors();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [board, setBoard] = useState<Board>(createEmptyBoard);
@@ -337,7 +340,7 @@ export default function HomeScreen() {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        setScanError('Photo access is needed to select a Wordfeud screenshot.');
+        setScanError(t('photoPermission'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -350,7 +353,7 @@ export default function HomeScreen() {
 
       const asset = result.assets[0];
       if (!asset?.base64) {
-        throw new Error('The selected screenshot could not be prepared for scanning.');
+        throw new Error(t('screenshotPreparationError'));
       }
 
       setScreenshotUri(asset.uri);
@@ -389,7 +392,7 @@ export default function HomeScreen() {
       );
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      setScanError(getScanErrorMessage(error));
+      setScanError(getScanErrorMessage(error, t));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsImporting(false);
@@ -444,29 +447,29 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={[styles.eyebrow, { color: colors.primary }]}>DUTCH WORD ENGINE · BETA</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Play the best move.</Text>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>{t('heroEyebrow')}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t('heroTitle')}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Import a Wordfeud screenshot to read the board, rack, and every crossing word.
+            {t('heroSubtitle')}
           </Text>
         </View>
 
         <View style={[styles.languageRow, { backgroundColor: colors.secondary }]}>
           <View style={styles.languageLeft}>
             <View style={[styles.languageDot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.languageText, { color: colors.foreground }]}>Nederlands</Text>
-            <Text style={[styles.activeText, { color: colors.mutedForeground }]}>active</Text>
+            <Text style={[styles.languageText, { color: colors.foreground }]}>{t('dutch')}</Text>
+            <Text style={[styles.activeText, { color: colors.mutedForeground }]}>{t('active')}</Text>
           </View>
           <View style={[styles.soonPill, { backgroundColor: colors.card }]}>
             <Ionicons name="globe-outline" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.soonText, { color: colors.mutedForeground }]}>more languages soon</Text>
+            <Text style={[styles.soonText, { color: colors.mutedForeground }]}>{t('moreLanguagesSoon')}</Text>
           </View>
         </View>
 
         <View style={[styles.sectionHeader, { marginTop: 20 }]}>
           <View>
-            <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>POSITION</Text>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your board</Text>
+            <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>{t('position')}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t('yourBoard')}</Text>
           </View>
           <Pressable
             testID="demo-position-button"
@@ -474,7 +477,7 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.textButton, { opacity: pressed ? 0.65 : 1 }]}
           >
             <Ionicons name="refresh-outline" size={16} color={colors.primary} />
-            <Text style={[styles.textButtonLabel, { color: colors.primary }]}>demo position</Text>
+            <Text style={[styles.textButtonLabel, { color: colors.primary }]}>{t('demoPosition')}</Text>
           </Pressable>
         </View>
 
@@ -497,10 +500,10 @@ export default function HomeScreen() {
           )}
           <View style={styles.scanButtonCopy}>
             <Text style={[styles.scanButtonTitle, { color: colors.primaryForeground }]}>
-              {isImporting ? 'Reading board and rack…' : 'Scan Wordfeud screenshot'}
+              {isImporting ? t('readingBoard') : t('scanScreenshot')}
             </Text>
             <Text style={[styles.scanButtonHint, { color: colors.primaryForeground }]}>
-              Import a screenshot and get move advice
+              {t('scanHint')}
             </Text>
           </View>
           {!isImporting && (
@@ -520,7 +523,7 @@ export default function HomeScreen() {
             <View style={styles.boardStatus}>
               <Ionicons name="grid-outline" size={16} color={colors.primary} />
               <Text style={[styles.boardStatusText, { color: colors.foreground }]}>
-                {lettersOnBoard} tiles on board
+                {lettersOnBoard} {t('tilesOnBoard')}
               </Text>
             </View>
             <Pressable
@@ -533,7 +536,7 @@ export default function HomeScreen() {
             >
               <Ionicons name={editingBoard ? 'checkmark' : 'create-outline'} size={14} color={editingBoard ? colors.primaryForeground : colors.foreground} />
               <Text style={[styles.editButtonText, { color: editingBoard ? colors.primaryForeground : colors.foreground }]}>
-                {editingBoard ? 'done' : 'edit'}
+                {editingBoard ? t('done') : t('edit')}
               </Text>
             </Pressable>
           </View>
@@ -550,8 +553,8 @@ export default function HomeScreen() {
           {editingBoard && (
             <View style={[styles.editorRow, { backgroundColor: colors.secondary }]}>
               <View style={styles.editorCopy}>
-                <Text style={[styles.editorLabel, { color: colors.foreground }]}>Tap a square, then enter its tile</Text>
-                <Text style={[styles.editorHint, { color: colors.mutedForeground }]}>Leave it empty to clear the square.</Text>
+                <Text style={[styles.editorLabel, { color: colors.foreground }]}>{t('tapSquare')}</Text>
+                <Text style={[styles.editorHint, { color: colors.mutedForeground }]}>{t('leaveEmpty')}</Text>
               </View>
               <TextInput
                 testID="selected-letter-input"
@@ -572,14 +575,14 @@ export default function HomeScreen() {
               <View style={styles.screenshotCopy}>
                 <Text style={[styles.screenshotTitle, { color: colors.foreground }]}>
                   {scanInfo
-                    ? `Scan complete · ${Math.round(scanInfo.confidence * 100)}% confidence`
-                    : 'Screenshot selected'}
+                    ? t('scanComplete', scanInfo.confidence)
+                    : t('screenshotSelected')}
                 </Text>
                 <Text style={[styles.screenshotHint, { color: colors.mutedForeground }]}>
                   {scanInfo
                     ? scanInfo.warnings[0] ??
-                      `${scanInfo.detectedBoardTiles} board tiles and ${scanInfo.detectedRackTiles} rack tiles recognized. Check and correct any errors.`
-                    : 'The screenshot is ready to scan.'}
+                      t('recognizedSummary', scanInfo.detectedBoardTiles, scanInfo.detectedRackTiles)
+                    : t('screenshotReady')}
                 </Text>
               </View>
               <Ionicons
@@ -594,8 +597,8 @@ export default function HomeScreen() {
         <View style={[styles.rackCard, { backgroundColor: colors.foreground }]}>
           <View style={styles.rackHeader}>
             <View>
-              <Text style={[styles.rackKicker, { color: colors.accent }]}>YOUR RACK</Text>
-              <Text style={[styles.rackTitle, { color: colors.card }]}>What tiles do you have?</Text>
+                <Text style={[styles.rackKicker, { color: colors.accent }]}>{t('yourRack')}</Text>
+                <Text style={[styles.rackTitle, { color: colors.card }]}>{t('rackQuestion')}</Text>
             </View>
             <View style={[styles.rackCount, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.rackCountText, { color: colors.foreground }]}>{rack.replace(/[^A-Z?]/gi, '').length}/7</Text>
@@ -609,14 +612,14 @@ export default function HomeScreen() {
               setResults([]);
               setSelectedMove(null);
             }}
-            placeholder="e.g. AARTE?"
+            placeholder={t('rackPlaceholder')}
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="characters"
             autoCorrect={false}
             maxLength={7}
             style={[styles.rackInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
           />
-              <Text style={[styles.rackHint, { color: colors.mutedForeground }]}>Use ? for a blank tile.</Text>
+              <Text style={[styles.rackHint, { color: colors.mutedForeground }]}>{t('blankTileHint')}</Text>
         </View>
 
         <Pressable
@@ -627,21 +630,21 @@ export default function HomeScreen() {
         >
           {isSolving ? <ActivityIndicator color={colors.primaryForeground} /> : <Ionicons name="sparkles-outline" size={19} color={colors.primaryForeground} />}
           <Text style={[styles.solveButtonText, { color: colors.primaryForeground }]}>
-            {isSolving ? 'Finding legal moves…' : 'Find best moves'}
+            {isSolving ? t('findingMoves') : t('findBestMoves')}
           </Text>
           {!isSolving && <Ionicons name="arrow-forward" size={18} color={colors.primaryForeground} />}
         </Pressable>
 
         <View style={[styles.resultsHeader, { borderBottomColor: colors.border }]}>
           <View>
-            <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>RESULTS</Text>
+            <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>{t('results')}</Text>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {results.length > 0 ? 'Best legal moves' : 'Ready when you are'}
+              {results.length > 0 ? t('bestLegalMoves') : t('readyWhenYouAre')}
             </Text>
           </View>
           {results.length > 0 && (
             <View style={[styles.resultCount, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.resultCountText, { color: colors.accentForeground }]}>{results.length} found</Text>
+              <Text style={[styles.resultCountText, { color: colors.accentForeground }]}>{t('found', results.length)}</Text>
             </View>
           )}
         </View>
@@ -654,6 +657,7 @@ export default function HomeScreen() {
                 move={move}
                 rank={index + 1}
                 colors={colors}
+                t={t}
                 selected={selectedMove === move}
                 onPress={() => setSelectedMove(move)}
               />
@@ -664,16 +668,16 @@ export default function HomeScreen() {
             <View style={[styles.emptyIcon, { backgroundColor: colors.card }]}>
               <Ionicons name="trophy-outline" size={21} color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Cross-check every word</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t('crossCheckTitle')}</Text>
             <Text style={[styles.emptyCopy, { color: colors.mutedForeground }]}>
-              Wordfeud Helper will only show moves whose side words also exist in the Dutch list.
+              {t('crossCheckCopy')}
             </Text>
           </View>
         )}
 
         <View style={styles.footerNote}>
           <Ionicons name="shield-checkmark-outline" size={15} color={colors.mutedForeground} />
-          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Your positions stay on this device in this preview.</Text>
+          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>{t('positionsStayLocal')}</Text>
         </View>
       </ScrollView>
     </View>
