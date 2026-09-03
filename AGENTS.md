@@ -11,17 +11,18 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 ## Current state
 
 - Expo 57 / React Native 0.86 mobile app.
-- Dutch-first offline prototype.
+- Dutch-first offline app.
 - Screenshot import from the device photo library is implemented as the primary input flow.
 - Imported screenshots are sent to the server-side managed OpenAI vision integration, which returns a 15×15 board, rack, confidence score, and warnings.
 - Recognized positions automatically populate the editor and run the move solver; users can correct uncertain tiles manually.
 - Editable 15×15 board with rack input for up to seven tiles.
-- The default position is a blank 15×15 Wordfeud board using the real TL, DL, TW, DW, and center-star layout.
+- The default position is a blank 15×15 Wordfeud board using the real 3L, 2L, 3W, 2W, and center-star layout.
 - `?` is supported as a blank tile and scores zero.
 - Move generation checks horizontal and vertical placements, board connection rules, crossing words, and the real Wordfeud letter/word multipliers.
 - Results are ranked by score and show coordinates, orientation, tiles used, and validated crossing words.
 - Current board and rack are saved locally with AsyncStorage.
-- A compact Dutch starter dictionary is embedded for the prototype; it is not yet a complete production Wordfeud dictionary pack.
+- The embedded Dutch list contains the 3,941 unique words currently published on the A–Z pages at wordfeudwoorden.nl, covering lengths 2–12.
+- The published pages are curated lists, not an export of the site's private backend dictionary; the UI identifies them as the published A–Z list.
 - A settings screen includes a persisted app-language selector with Dutch as the default and English as the second option, alongside dictionary/scoring details.
 - The brand mark is two adjacent letter tiles: W with a 5 in the upper-right and H with a 4 in the upper-right.
 
@@ -44,7 +45,7 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 
 ## Next milestones
 
-1. Replace the starter Dutch list with a complete, legally sourced dictionary pack and add unit coverage for Wordfeud board rules.
+1. Replace the published A–Z subset with the complete backend dictionary when an authorized database/export becomes available.
 2. Improve screenshot recognition across more devices, crops, themes, and Wordfeud versions.
 3. Add more Wordfeud languages through downloadable dictionary packs.
 4. Add optional accounts and paid features only after the core solver is reliable.

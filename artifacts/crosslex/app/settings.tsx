@@ -6,12 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage } from '@/context/LanguageContext';
+import { getDutchDictionaryStatus } from '@/lib/solver';
 
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language, setLanguage, t } = useLanguage();
+  const dictionaryStatus = getDutchDictionaryStatus();
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
@@ -79,9 +81,17 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.rowCopy}>
             <Text style={[styles.rowTitle, { color: colors.foreground }]}>{t('dictionary')}</Text>
-            <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>{t('starterList')}</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>
+              {dictionaryStatus.ready
+                ? `${t('starterList')} · ${dictionaryStatus.wordCount.toLocaleString(language)} ${t('words')}`
+                : dictionaryStatus.error}
+            </Text>
           </View>
-          <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+          <Ionicons
+            name={dictionaryStatus.ready ? 'checkmark-circle' : 'alert-circle'}
+            size={20}
+            color={dictionaryStatus.ready ? colors.primary : colors.destructive}
+          />
         </View>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.row}>
@@ -94,6 +104,12 @@ export default function SettingsScreen() {
           </View>
           <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
         </View>
+      </View>
+      <View style={[styles.infoBox, { backgroundColor: colors.muted }]}>
+        <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+        <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
+          {t('dictionaryDisclaimer')}
+        </Text>
       </View>
       <View style={[styles.infoBox, { backgroundColor: colors.muted }]}>
         <Ionicons name="sparkles-outline" size={20} color={colors.primary} />

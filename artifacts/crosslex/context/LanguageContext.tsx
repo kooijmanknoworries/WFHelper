@@ -15,7 +15,10 @@ const translations = {
     dutch: 'Nederlands',
     english: 'Engels',
     dictionary: 'Woordenboek',
-    starterList: 'Nederlands · startlijst',
+    starterList: 'Nederlands · gepubliceerde A-Z-lijst',
+    words: 'woorden',
+    dictionaryDisclaimer:
+      'Samengestelde deellijst van 2–12 letters. Dit is niet het volledige Wordfeud-woordenboek; geldige woorden buiten deze lijst kunnen ontbreken.',
     scoringRules: 'Score regels',
     wordfeudMultipliers: 'Wordfeud-bordvermenigvuldigers',
     scanInfo:
@@ -57,7 +60,7 @@ const translations = {
     findingMoves: 'Legale zetten zoeken…',
     findBestMoves: 'Beste zetten vinden',
     results: 'RESULTATEN',
-    bestLegalMoves: 'Beste legale zetten',
+    bestLegalMoves: 'Beste zetten uit de A-Z-lijst',
     readyWhenYouAre: 'Klaar wanneer jij dat bent',
     found: (count: number) => `${count} gevonden`,
     movePlaced: (word: string) => `Zet ${word} geplaatst.`,
@@ -72,7 +75,8 @@ const translations = {
     noCrossings: 'Geen kruiswoorden gevormd',
     crossCheckTitle: 'Controleer elk woord',
     crossCheckCopy:
-      'Wordfeud Helper toont alleen zetten waarvan ook de kruiswoorden in de Nederlandse lijst staan.',
+      'Alle getoonde hoofd- en kruiswoorden staan in de gepubliceerde A-Z-deellijst. Woorden buiten deze lijst kunnen ontbreken.',
+    solverError: 'De woordenlijst kon niet veilig worden geladen. Probeer het later opnieuw.',
     positionsStayLocal: 'Je posities blijven in deze preview op dit apparaat.',
   },
   en: {
@@ -84,7 +88,10 @@ const translations = {
     dutch: 'Dutch',
     english: 'English',
     dictionary: 'Dictionary',
-    starterList: 'Dutch · starter list',
+    starterList: 'Dutch · published A-Z list',
+    words: 'words',
+    dictionaryDisclaimer:
+      'Curated 2–12-letter subset. This is not the complete Wordfeud dictionary; valid words outside this list may be missing.',
     scoringRules: 'Scoring rules',
     wordfeudMultipliers: 'Wordfeud board multipliers',
     scanInfo:
@@ -126,7 +133,7 @@ const translations = {
     findingMoves: 'Finding legal moves…',
     findBestMoves: 'Find best moves',
     results: 'RESULTS',
-    bestLegalMoves: 'Best legal moves',
+    bestLegalMoves: 'Best moves from the A-Z list',
     readyWhenYouAre: 'Ready when you are',
     found: (count: number) => `${count} found`,
     movePlaced: (word: string) => `Move ${word} placed.`,
@@ -141,7 +148,8 @@ const translations = {
     noCrossings: 'No crossing words formed',
     crossCheckTitle: 'Cross-check every word',
     crossCheckCopy:
-      'Wordfeud Helper only shows moves whose side words also exist in the Dutch list.',
+      'Every shown main and crossing word appears in the published A-Z subset. Words outside this list may be missing.',
+    solverError: 'The dictionary could not be loaded safely. Please try again later.',
     positionsStayLocal: 'Your positions stay on this device in this preview.',
   },
 } as const;

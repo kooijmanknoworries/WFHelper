@@ -1,10 +1,14 @@
 import {
+  DUTCH_WORDS,
   createEmptyBoard,
   findBestMoves,
+  getDutchDictionaryStatus,
   getPremiumLabel,
+  validateDutchDictionaryWords,
   type Board,
   type Direction,
 } from '../lib/solver.ts';
+import { DUTCH_SITE_DICTIONARY_META } from '../data/dutch-site-wordlist.ts';
 
 type ExpectedMove = {
   word: string;
@@ -53,6 +57,54 @@ for (let row = 0; row < 15; row += 1) {
   }
 }
 
+const dictionaryStatus = getDutchDictionaryStatus();
+const expectedDictionarySha256 = '3fc5d5fcffc2cf18bf26e9f429b2d9c98c21564d70aaf7a0e926fda2a216a038';
+const expectedPageCounts = [
+  170, 124, 161, 162, 167, 161, 161, 166, 167, 162, 162, 162, 164,
+  163, 168, 164, 124, 163, 162, 163, 165, 161, 161, 34, 62, 162,
+];
+assert(dictionaryStatus.ready, 'The published A-Z dictionary must load successfully.');
+assert(
+  dictionaryStatus.wordCount === 3941 && DUTCH_SITE_DICTIONARY_META.sourcePages.length === 26,
+  'The generated dictionary must include all 26 published A-Z pages.',
+);
+assert(
+  DUTCH_SITE_DICTIONARY_META.dictionarySha256 === expectedDictionarySha256,
+  'The generated dictionary must match the reviewed published snapshot.',
+);
+assert(
+  DUTCH_SITE_DICTIONARY_META.sourcePages.every(
+    (page, index) => page.wordCount === expectedPageCounts[index],
+  ),
+  'Every source page must match the reviewed unique-word count.',
+);
+const dictionaryWords = new Set<string>(DUTCH_WORDS);
+for (const word of [
+  'AF',
+  'ACH',
+  'ACCU',
+  'ACRYL',
+  'ACQUIT',
+  'ACQUITS',
+  'ATYPISCH',
+  'ACRYLBLOK',
+  'ACRYLVEZEL',
+  'AMFIBRACHYS',
+  'ANTICYCLISCH',
+]) {
+  assert(dictionaryWords.has(word), `The published dictionary is missing ${word}.`);
+}
+assert(
+  validateDutchDictionaryWords(DUTCH_WORDS.slice(1))?.includes('count mismatch'),
+  'An incomplete dictionary pack must fail explicitly.',
+);
+const corruptedDictionary: string[] = [...DUTCH_WORDS];
+corruptedDictionary[0] = 'AB';
+assert(
+  validateDutchDictionaryWords(corruptedDictionary)?.includes('checksum mismatch'),
+  'A same-count corrupted dictionary pack must fail explicitly.',
+);
+
 function createReferenceBoard(): Board {
   const board = createEmptyBoard();
   const occupied: Array<[number, number, string]> = [
@@ -96,6 +148,11 @@ const strictMoves = findBestMoves(referenceBoard, 'YDFUDEG', ['EDDY', 'FUDGE'], 
 assert(
   !containsMove(strictMoves, invalidEddy),
   'EDDY was accepted even though its final Y creates the invalid crossing NY.',
+);
+const defaultDictionaryMoves = findBestMoves(referenceBoard, 'YDFUDEG', undefined, 100);
+assert(
+  !containsMove(defaultDictionaryMoves, invalidEddy),
+  'The published dictionary accepted EDDY even though it creates the unpublished NY crossing.',
 );
 
 const fixtureCheck = findBestMoves(referenceBoard, 'YDFUDEG', ['EDDY', 'NY'], 100);

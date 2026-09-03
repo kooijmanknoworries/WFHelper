@@ -1,3 +1,9 @@
+import {
+  DUTCH_SITE_DICTIONARY_META,
+  DUTCH_SITE_WORDS,
+} from '../data/dutch-site-wordlist.ts';
+import { sha256Ascii } from './sha256.ts';
+
 export const BOARD_SIZE = 15;
 export const RACK_SIZE = 7;
 
@@ -118,7 +124,7 @@ export function getPremiumLabel(row: number, col: number): PremiumLabel | '' {
 // A compact Dutch starter list keeps the first build fully offline. The
 // dictionary is intentionally isolated so a complete licensed list can be
 // swapped in without changing the solver or UI.
-export const DUTCH_WORDS = [
+export const LEGACY_PROTOTYPE_DUTCH_WORDS = [
   'AAI',
   'AAN',
   'AARD',
@@ -329,6 +335,53 @@ export const DUTCH_WORDS = [
   'ZUID',
   'ZWART',
 ].filter((word) => word.length >= 2);
+
+export const DUTCH_WORDS = [...DUTCH_SITE_WORDS];
+
+export function validateDutchDictionaryWords(words: readonly string[]) {
+  if (words.length !== DUTCH_SITE_DICTIONARY_META.wordCount) {
+    return `Dictionary count mismatch: expected ${DUTCH_SITE_DICTIONARY_META.wordCount}, received ${words.length}.`;
+  }
+  if (DUTCH_SITE_DICTIONARY_META.sourcePages.length !== 26) {
+    return 'Dictionary source metadata does not contain all 26 A-Z pages.';
+  }
+  const sourceWordCount = DUTCH_SITE_DICTIONARY_META.sourcePages.reduce(
+    (total, page) => total + page.wordCount,
+    0,
+  );
+  if (sourceWordCount !== words.length) {
+    return `Dictionary source count mismatch: pages contain ${sourceWordCount}, pack contains ${words.length}.`;
+  }
+  const seen = new Set<string>();
+  for (const word of words) {
+    if (!/^[A-Z]{2,12}$/.test(word)) return `Dictionary contains an invalid entry: ${word}.`;
+    if (seen.has(word)) return `Dictionary contains a duplicate entry: ${word}.`;
+    seen.add(word);
+  }
+  const checksum = sha256Ascii(words.join('\n'));
+  if (checksum !== DUTCH_SITE_DICTIONARY_META.dictionarySha256) {
+    return `Dictionary checksum mismatch: expected ${DUTCH_SITE_DICTIONARY_META.dictionarySha256}, received ${checksum}.`;
+  }
+  return null;
+}
+
+const DUTCH_DICTIONARY_ERROR = validateDutchDictionaryWords(DUTCH_WORDS);
+
+export function getDutchDictionaryStatus() {
+  if (DUTCH_DICTIONARY_ERROR) {
+    return {
+      ready: false as const,
+      wordCount: 0,
+      error: DUTCH_DICTIONARY_ERROR,
+      source: DUTCH_SITE_DICTIONARY_META,
+    };
+  }
+  return {
+    ready: true as const,
+    wordCount: DUTCH_WORDS.length,
+    source: DUTCH_SITE_DICTIONARY_META,
+  };
+}
 
 export function createEmptyBoard(): Board {
   return Array.from({ length: BOARD_SIZE }, () =>
@@ -576,6 +629,9 @@ export function findBestMoves(
   words: string[] = DUTCH_WORDS,
   limit = 8,
 ): Move[] {
+  if (words === DUTCH_WORDS && DUTCH_DICTIONARY_ERROR) {
+    throw new Error(`Dutch dictionary failed to load: ${DUTCH_DICTIONARY_ERROR}`);
+  }
   const dictionary = new Set(words.map((word) => word.toUpperCase()));
   const rackCounts = new Map<string, number>();
   for (const letter of rack.toUpperCase().replace(/[^A-Z?]/g, '')) {
