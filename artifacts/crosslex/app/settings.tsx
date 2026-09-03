@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage } from '@/context/LanguageContext';
+import { useFeedbackSettings } from '@/context/FeedbackSettingsContext';
 import {
   checkDutchDictionaryForUpdates,
   getDutchDictionaryStatus,
@@ -43,6 +44,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language, setLanguage, t } = useLanguage();
+  const { settings, isReady: feedbackSettingsReady, setEnabled } = useFeedbackSettings();
   const [dictionaryStatus, setDictionaryStatus] = useState(getDutchDictionaryStatus);
 
   useEffect(() => subscribeToDutchDictionary(setDictionaryStatus), []);
@@ -51,6 +53,26 @@ export default function SettingsScreen() {
   const isChecking =
     dictionaryStatus.updateState === 'checking' ||
     dictionaryStatus.updateState === 'downloading';
+  const feedbackRows = [
+    {
+      key: 'visualEffects' as const,
+      icon: 'sparkles-outline' as const,
+      title: t('visualEffects'),
+      subtitle: t('visualEffectsSubtitle'),
+    },
+    {
+      key: 'soundEffects' as const,
+      icon: 'volume-high-outline' as const,
+      title: t('soundEffects'),
+      subtitle: t('soundEffectsSubtitle'),
+    },
+    {
+      key: 'hapticFeedback' as const,
+      icon: 'phone-portrait-outline' as const,
+      title: t('hapticFeedback'),
+      subtitle: t('hapticFeedbackSubtitle'),
+    },
+  ];
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
@@ -62,7 +84,10 @@ export default function SettingsScreen() {
         },
       ]}
     >
-      <Pressable onPress={() => router.back()} style={styles.backButton}>
+      <Pressable
+        onPress={() => (Platform.OS === 'web' ? router.replace('/') : router.back())}
+        style={styles.backButton}
+      >
         <Ionicons name="arrow-back" size={18} color={colors.foreground} />
         <Text style={[styles.backText, { color: colors.foreground }]}>{t('backToSolver')}</Text>
       </Pressable>
@@ -108,6 +133,56 @@ export default function SettingsScreen() {
                 <Ionicons name="checkmark" size={15} color={colors.primaryForeground} />
               )}
             </Pressable>
+          ))}
+        </View>
+      </View>
+      <View style={[styles.rewardCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.rewardHeader}>
+          <View style={[styles.rewardIcon, { backgroundColor: colors.accent }]}>
+            <Ionicons name="trophy-outline" size={21} color={colors.accentForeground} />
+          </View>
+          <View style={styles.rowCopy}>
+            <Text style={[styles.rewardTitle, { color: colors.foreground }]}>{t('feedback')}</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>
+              {t('feedbackSubtitle')}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.personalBest, { backgroundColor: colors.secondary }]}>
+          <View>
+            <Text style={[styles.bestLabel, { color: colors.mutedForeground }]}>{t('personalBest')}</Text>
+            <Text style={[styles.bestScore, { color: colors.foreground }]}>
+              {settings.personalBest} <Text style={styles.bestUnit}>{t('points')}</Text>
+            </Text>
+          </View>
+          <Ionicons name="ribbon-outline" size={25} color={colors.accent} />
+        </View>
+        <View style={styles.feedbackRows}>
+          {feedbackRows.map((row, index) => (
+            <View
+              key={row.key}
+              style={[
+                styles.feedbackRow,
+                index > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+              ]}
+            >
+              <View style={[styles.feedbackRowIcon, { backgroundColor: colors.secondary }]}>
+                <Ionicons name={row.icon} size={18} color={colors.primary} />
+              </View>
+              <View style={styles.rowCopy}>
+                <Text style={[styles.rowTitle, { color: colors.foreground }]}>{row.title}</Text>
+                <Text style={[styles.rowSubtitle, { color: colors.mutedForeground }]}>{row.subtitle}</Text>
+              </View>
+              <Switch
+                accessibilityLabel={row.title}
+                accessibilityState={{ disabled: !feedbackSettingsReady, checked: settings[row.key] }}
+                disabled={!feedbackSettingsReady}
+                value={settings[row.key]}
+                onValueChange={(value) => void setEnabled(row.key, value)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.primaryForeground}
+              />
+            </View>
           ))}
         </View>
       </View>
@@ -221,6 +296,17 @@ const styles = StyleSheet.create({
   languageOptions: { borderRadius: 12, padding: 3, flexDirection: 'row', marginTop: 15, gap: 3 },
   languageOption: { flex: 1, minHeight: 40, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   languageOptionText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  rewardCard: { borderRadius: 22, borderWidth: 1, padding: 15, marginTop: 16 },
+  rewardHeader: { flexDirection: 'row', alignItems: 'center' },
+  rewardIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  rewardTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  personalBest: { borderRadius: 15, paddingHorizontal: 15, paddingVertical: 13, marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bestLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.1, textTransform: 'uppercase' },
+  bestScore: { fontSize: 25, lineHeight: 30, fontFamily: 'Inter_700Bold', marginTop: 2 },
+  bestUnit: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  feedbackRows: { marginTop: 8 },
+  feedbackRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center' },
+  feedbackRowIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   card: { borderRadius: 19, borderWidth: 1, paddingHorizontal: 15, marginTop: 28 },
   row: { minHeight: 78, flexDirection: 'row', alignItems: 'center' },
   rowIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

@@ -15,6 +15,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { setBaseUrl } from '@workspace/api-client-react';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { FeedbackSettingsProvider } from '@/context/FeedbackSettingsContext';
 import { checkDutchDictionaryForUpdates, initializeDutchDictionary } from '@/lib/solver';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -61,7 +62,9 @@ export default function RootLayout() {
           <GestureHandlerRootView>
             <KeyboardProvider>
               <LanguageProvider>
-                <RootLayoutNav />
+                <FeedbackSettingsProvider>
+                  <RootLayoutNav />
+                </FeedbackSettingsProvider>
               </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

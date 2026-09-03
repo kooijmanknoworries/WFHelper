@@ -1,12 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import { useAudioPlayer } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AccessibilityInfo,
+  Animated,
   Image,
   Platform,
   Pressable,
@@ -25,6 +28,7 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage, type Translator } from '@/context/LanguageContext';
+import { useFeedbackSettings } from '@/context/FeedbackSettingsContext';
 import {
   BOARD_SIZE,
   applyMove,
@@ -66,6 +70,175 @@ type SuggestionSession = {
   board: Board;
   rack: string;
 };
+
+type RewardMoment = {
+  id: number;
+  move: Move;
+  isNewBest: boolean;
+};
+
+const REWARD_PARTICLES = [
+  { left: 9, top: 12, size: 8, rotate: '-18deg' },
+  { left: 19, top: 22, size: 6, rotate: '31deg' },
+  { left: 31, top: 9, size: 9, rotate: '12deg' },
+  { left: 43, top: 18, size: 7, rotate: '-37deg' },
+  { left: 56, top: 8, size: 8, rotate: '24deg' },
+  { left: 67, top: 21, size: 6, rotate: '-13deg' },
+  { left: 79, top: 11, size: 9, rotate: '42deg' },
+  { left: 89, top: 24, size: 7, rotate: '-29deg' },
+  { left: 14, top: 39, size: 7, rotate: '18deg' },
+  { left: 84, top: 43, size: 8, rotate: '-21deg' },
+  { left: 26, top: 55, size: 6, rotate: '38deg' },
+  { left: 73, top: 58, size: 7, rotate: '-34deg' },
+] as const;
+
+function getRewardTier(score: number) {
+  if (score >= 70) return 6;
+  if (score >= 50) return 5;
+  if (score >= 40) return 4;
+  if (score >= 30) return 3;
+  if (score >= 20) return 2;
+  if (score >= 10) return 1;
+  return 0;
+}
+
+function getRewardLabel(score: number, t: Translator) {
+  if (score >= 70) return t('rewardLegendary');
+  if (score >= 50) return t('rewardHuge');
+  if (score >= 40) return t('rewardAmazing');
+  if (score >= 30) return t('rewardExcellent');
+  if (score >= 20) return t('rewardGreat');
+  return t('rewardNice');
+}
+
+function RewardCelebration({
+  moment,
+  enabled,
+  colors,
+  t,
+}: {
+  moment: RewardMoment | null;
+  enabled: boolean;
+  colors: ReturnType<typeof useColors>;
+  t: Translator;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.78)).current;
+  const translateY = useRef(new Animated.Value(22)).current;
+  const useNativeDriver = Platform.OS !== 'web';
+
+  useEffect(() => {
+    if (!moment || !enabled) return;
+    opacity.setValue(0);
+    scale.setValue(0.78);
+    translateY.setValue(22);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver }),
+        Animated.delay(1450),
+        Animated.timing(opacity, { toValue: 0, duration: 280, useNativeDriver }),
+      ]),
+      Animated.spring(scale, { toValue: 1, damping: 11, stiffness: 180, useNativeDriver }),
+      Animated.spring(translateY, { toValue: 0, damping: 13, stiffness: 150, useNativeDriver }),
+    ]).start();
+  }, [enabled, moment, opacity, scale, translateY, useNativeDriver]);
+
+  if (!moment || !enabled) return null;
+
+  const tier = getRewardTier(moment.move.score);
+  const particleCount = tier === 0 ? 0 : Math.min(REWARD_PARTICLES.length, 4 + tier * 2);
+  const particleColors = [
+    colors.accent,
+    colors.rewardGold,
+    colors.rewardPink,
+    colors.rewardCyan,
+    colors.suggestion,
+  ];
+
+  return (
+    <Animated.View
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.rewardOverlay, { opacity, pointerEvents: 'none' }]}
+    >
+      {REWARD_PARTICLES.slice(0, particleCount).map((particle, index) => (
+        <View
+          key={`${moment.id}-particle-${index}`}
+          style={[
+            styles.rewardParticle,
+            {
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
+              width: particle.size,
+              height: particle.size * 1.8,
+              backgroundColor: particleColors[index % particleColors.length],
+              transform: [{ rotate: particle.rotate }],
+            },
+          ]}
+        />
+      ))}
+      <Animated.View
+        style={[
+          styles.rewardCard,
+          {
+            backgroundColor: tier >= 4 ? colors.accent : colors.card,
+            borderColor: tier >= 4 ? colors.rewardGold : colors.primary,
+            transform: [{ translateY }, { scale }],
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.rewardBadge,
+            {
+              backgroundColor: tier >= 4 ? colors.rewardGold : colors.primary,
+              borderColor: colors.background,
+            },
+          ]}
+        >
+          <Ionicons
+            name={tier >= 4 ? 'trophy' : tier >= 2 ? 'sparkles' : 'star'}
+            size={18}
+            color={tier >= 4 ? colors.accentForeground : colors.primaryForeground}
+          />
+        </View>
+        <Text
+          style={[
+            styles.rewardLabel,
+            { color: tier >= 4 ? colors.accentForeground : colors.mutedForeground },
+          ]}
+        >
+          {getRewardLabel(moment.move.score, t)}
+        </Text>
+        <Text
+          style={[
+            styles.rewardWord,
+            { color: tier >= 4 ? colors.accentForeground : colors.foreground },
+          ]}
+        >
+          {moment.move.word}
+        </Text>
+        <Text
+          style={[
+            styles.rewardScore,
+            { color: tier >= 4 ? colors.accentForeground : colors.rewardGold },
+          ]}
+        >
+          {moment.move.score} {t('points')}
+        </Text>
+        {moment.isNewBest && (
+          <View style={[styles.newBestPill, { backgroundColor: colors.rewardGold }]}>
+            <Ionicons name="ribbon" size={13} color={colors.accentForeground} />
+            <Text style={[styles.newBestText, { color: colors.accentForeground }]}>
+              {t('newPersonalBest')}
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+    </Animated.View>
+  );
+}
 
 function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
   if (value === ScanBoardInputMimeType['image/png']) return value;
@@ -402,8 +575,14 @@ function MoveRow({
 export default function HomeScreen() {
   const colors = useColors();
   const { t } = useLanguage();
+  const {
+    settings: feedbackSettings,
+    isReady: feedbackSettingsReady,
+    recordScore,
+  } = useFeedbackSettings();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const rewardPlayer = useAudioPlayer(require('../assets/reward-pop.wav'));
   const [board, setBoard] = useState<Board>(createEmptyBoard);
   const [rack, setRack] = useState('AARTE?');
   const [editingBoard, setEditingBoard] = useState(false);
@@ -418,7 +597,9 @@ export default function HomeScreen() {
   const [scanInfo, setScanInfo] = useState<ScanInfo | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [taalTikCheck, setTaalTikCheck] = useState<TaalTikCheckState | null>(null);
+  const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
   const taalTikRequestRef = useRef(0);
+  const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -431,10 +612,57 @@ export default function HomeScreen() {
       .catch(() => undefined);
   }, []);
 
+  useEffect(
+    () => () => {
+      if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
+    },
+    [],
+  );
+
   const lettersOnBoard = useMemo(
     () => board.reduce((total, row) => total + row.filter(Boolean).length, 0),
     [board],
   );
+
+  const celebrateMove = async (move: Move) => {
+    if (!feedbackSettingsReady) return;
+    const isNewBest = await recordScore(move.score);
+    const announcement = [
+      getRewardLabel(move.score, t),
+      move.word,
+      `${move.score} ${t('points')}`,
+      isNewBest ? t('newPersonalBest') : null,
+    ]
+      .filter(Boolean)
+      .join('. ');
+    AccessibilityInfo.announceForAccessibility(announcement);
+
+    if (feedbackSettings.soundEffects) {
+      try {
+        rewardPlayer.volume = Math.min(0.8, 0.35 + getRewardTier(move.score) * 0.08);
+        await rewardPlayer.seekTo(0);
+        rewardPlayer.play();
+      } catch {
+        // Reward feedback remains useful if audio is unavailable on this device.
+      }
+    }
+
+    if (feedbackSettings.hapticFeedback) {
+      const impact =
+        move.score >= 50
+          ? Haptics.ImpactFeedbackStyle.Heavy
+          : move.score >= 20
+            ? Haptics.ImpactFeedbackStyle.Medium
+            : Haptics.ImpactFeedbackStyle.Light;
+      await Haptics.impactAsync(impact);
+    }
+
+    if (feedbackSettings.visualEffects) {
+      if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
+      setRewardMoment({ id: Date.now(), move, isNewBest });
+      rewardTimerRef.current = setTimeout(() => setRewardMoment(null), 2100);
+    }
+  };
 
   const updateBoardCell = (value: string) => {
     if (!selectedCell) return;
@@ -527,10 +755,16 @@ export default function HomeScreen() {
         STORAGE_KEY,
         JSON.stringify({ board: preview.board, rack: preview.rack }),
       );
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (scannedResults[0]) {
+        await celebrateMove(scannedResults[0]);
+      } else if (feedbackSettings.hapticFeedback) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (error) {
       setScanError(getScanErrorMessage(error, t));
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (feedbackSettings.hapticFeedback) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setIsImporting(false);
     }
@@ -540,7 +774,9 @@ export default function HomeScreen() {
     setIsSolving(true);
     setScanError(null);
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (feedbackSettings.hapticFeedback) {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
       await new Promise((resolve) => setTimeout(resolve, 180));
       await checkDutchDictionaryForUpdates();
       const sourceBoard = suggestionSession?.board ?? board;
@@ -551,9 +787,12 @@ export default function HomeScreen() {
         STORAGE_KEY,
         JSON.stringify({ board: preview.board, rack: preview.rack }),
       );
+      if (nextResults[0]) await celebrateMove(nextResults[0]);
     } catch {
       setScanError(t('solverError'));
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (feedbackSettings.hapticFeedback) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setIsSolving(false);
     }
@@ -575,10 +814,12 @@ export default function HomeScreen() {
       setEditingBoard(false);
       setSelectedCell(null);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack }));
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await celebrateMove(move);
     } catch {
       setScanError(t('solverError'));
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (feedbackSettings.hapticFeedback) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     }
   };
 
@@ -607,7 +848,9 @@ export default function HomeScreen() {
       : verdicts.some((verdict) => verdict.status === 'rejected')
         ? Haptics.NotificationFeedbackType.Warning
         : Haptics.NotificationFeedbackType.Success;
-    await Haptics.notificationAsync(feedbackType);
+    if (feedbackSettings.hapticFeedback) {
+      await Haptics.notificationAsync(feedbackType);
+    }
   };
 
   const loadDemo = () => {
@@ -620,6 +863,7 @@ export default function HomeScreen() {
     setSelectedMove(null);
     setPlacedMove(null);
     setSuggestionSession(null);
+    setRewardMoment(null);
     setEditingBoard(false);
     setSelectedCell(null);
   };
@@ -643,7 +887,9 @@ export default function HomeScreen() {
     } catch {
       // Clearing the visible screen is still successful if storage is unavailable.
     }
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (feedbackSettings.hapticFeedback) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const confirmClearScreen = () => {
@@ -943,6 +1189,12 @@ export default function HomeScreen() {
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>{t('positionsStayLocal')}</Text>
         </View>
       </ScrollView>
+      <RewardCelebration
+        moment={rewardMoment}
+        enabled={feedbackSettings.visualEffects}
+        colors={colors}
+        t={t}
+      />
     </View>
   );
 }
@@ -1043,4 +1295,13 @@ const styles = StyleSheet.create({
   emptyCopy: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 6, maxWidth: 260 },
   footerNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 21 },
   footerText: { fontSize: 10, fontFamily: 'Inter_400Regular' },
+  rewardOverlay: { ...StyleSheet.absoluteFill, zIndex: 30, alignItems: 'center' },
+  rewardParticle: { position: 'absolute', borderRadius: 3 },
+  rewardCard: { position: 'absolute', top: '17%', minWidth: 238, maxWidth: 310, borderRadius: 24, borderWidth: 2, paddingHorizontal: 24, paddingTop: 31, paddingBottom: 20, alignItems: 'center' },
+  rewardBadge: { position: 'absolute', top: -22, width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 4 },
+  rewardLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.3, textTransform: 'uppercase' },
+  rewardWord: { fontSize: 31, lineHeight: 36, fontFamily: 'Inter_700Bold', letterSpacing: 1.2, marginTop: 4 },
+  rewardScore: { fontSize: 17, fontFamily: 'Inter_700Bold', marginTop: 3 },
+  newBestPill: { marginTop: 12, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  newBestText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
 });

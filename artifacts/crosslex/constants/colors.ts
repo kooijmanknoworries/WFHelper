@@ -64,6 +64,9 @@ const colors = {
     premiumForeground: '#ffffff',
     suggestion: '#91e51f',
     suggestionForeground: '#14210b',
+    rewardGold: '#ffd166',
+    rewardPink: '#ff5d8f',
+    rewardCyan: '#4cc9f0',
   },
 
   // Border radius (in px). Sync from the sibling web artifact's --radius
