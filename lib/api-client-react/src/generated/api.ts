@@ -22,6 +22,7 @@ import type {
 import type {
   ApiError,
   HealthStatus,
+  RateLimitError,
   ScanBoardInput,
   ScanBoardResult
 } from './api.schemas';
@@ -157,7 +158,7 @@ export const scanWordfeudBoard = async (scanBoardInput: ScanBoardInput, options?
 
 
 
-export const getScanWordfeudBoardMutationOptions = <TError = ErrorType<ApiError>,
+export const getScanWordfeudBoardMutationOptions = <TError = ErrorType<ApiError | RateLimitError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanWordfeudBoard>>, TError,{data: BodyType<ScanBoardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof scanWordfeudBoard>>, TError,{data: BodyType<ScanBoardInput>}, TContext> => {
 
@@ -186,12 +187,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ScanWordfeudBoardMutationResult = NonNullable<Awaited<ReturnType<typeof scanWordfeudBoard>>>
     export type ScanWordfeudBoardMutationBody = BodyType<ScanBoardInput>
-    export type ScanWordfeudBoardMutationError = ErrorType<ApiError>
+    export type ScanWordfeudBoardMutationError = ErrorType<ApiError | RateLimitError>
 
     /**
  * @summary Recognize a Wordfeud board and rack from a screenshot
  */
-export const useScanWordfeudBoard = <TError = ErrorType<ApiError>,
+export const useScanWordfeudBoard = <TError = ErrorType<ApiError | RateLimitError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanWordfeudBoard>>, TError,{data: BodyType<ScanBoardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof scanWordfeudBoard>>,
