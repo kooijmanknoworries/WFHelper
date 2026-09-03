@@ -8,6 +8,7 @@
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "test:solver": "node --experimental-strip-types scripts/solver-regression.ts",
+    "generate:dictionary": "node scripts/generate-dutch-dictionary.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

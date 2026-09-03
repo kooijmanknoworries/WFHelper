@@ -1,3 +1,8 @@
+import {
+  DUTCH_DICTIONARY_METADATA,
+  DUTCH_WORDS as PACKAGED_DUTCH_WORDS,
+} from '../data/dutch-wordlist.ts';
+
 export const BOARD_SIZE = 15;
 export const RACK_SIZE = 7;
 
@@ -118,7 +123,7 @@ export function getPremiumLabel(row: number, col: number): PremiumLabel | '' {
 // A compact Dutch starter list keeps the first build fully offline. The
 // dictionary is intentionally isolated so a complete licensed list can be
 // swapped in without changing the solver or UI.
-export const DUTCH_WORDS = [
+const STARTER_DUTCH_WORDS = [
   'AAI',
   'AAN',
   'AARD',
@@ -330,6 +335,190 @@ export const DUTCH_WORDS = [
   'ZWART',
 ].filter((word) => word.length >= 2);
 
+export const DUTCH_DICTIONARY_SOURCE = {
+  name: 'CrossLex Nederlandse Wordfeud-woordenlijst',
+  version: DUTCH_DICTIONARY_METADATA.version,
+  wordCount: DUTCH_DICTIONARY_METADATA.wordCount,
+  sourceUrls: DUTCH_DICTIONARY_METADATA.sources,
+} as const;
+
+const REQUIRED_DUTCH_WORDS = [
+  'AARDAPPEL',
+  'FIETS',
+  'GEZELLIG',
+  'KONIJN',
+  'MUZIEK',
+  'PYJAMA',
+  'QUICHE',
+  'XYLOFOON',
+  'ZWAARD',
+] as const;
+const REJECTED_PROPER_NAMES = ['AALTER', 'AMSTERDAM', 'ROTTERDAM'] as const;
+
+export type DutchDictionaryStatus =
+  | { ready: true; wordCount: number; source: typeof DUTCH_DICTIONARY_SOURCE }
+  | { ready: false; error: string; source: typeof DUTCH_DICTIONARY_SOURCE };
+
+export class DictionaryLoadError extends Error {
+  constructor(message: string) {
+    super(`Dutch dictionary unavailable: ${message}`);
+    this.name = 'DictionaryLoadError';
+  }
+}
+
+let dictionaryStatus: DutchDictionaryStatus | null = null;
+let packagedDictionarySet: Set<string> | null = null;
+
+function sha256WordSequence(words: readonly string[]) {
+  const constants = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
+    0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
+    0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
+    0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
+    0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+    0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
+    0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+    0xc67178f2,
+  ];
+  const hash = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+  const block = new Uint8Array(64);
+  const schedule = new Uint32Array(64);
+  let blockLength = 0;
+  let byteLength = 0;
+  const rotateRight = (value: number, bits: number) => (value >>> bits) | (value << (32 - bits));
+  const compress = () => {
+    for (let index = 0; index < 16; index += 1) {
+      const offset = index * 4;
+      schedule[index] =
+        (block[offset] << 24) | (block[offset + 1] << 16) | (block[offset + 2] << 8) | block[offset + 3];
+    }
+    for (let index = 16; index < 64; index += 1) {
+      const s0 =
+        rotateRight(schedule[index - 15], 7) ^
+        rotateRight(schedule[index - 15], 18) ^
+        (schedule[index - 15] >>> 3);
+      const s1 =
+        rotateRight(schedule[index - 2], 17) ^
+        rotateRight(schedule[index - 2], 19) ^
+        (schedule[index - 2] >>> 10);
+      schedule[index] =
+        (schedule[index - 16] + s0 + schedule[index - 7] + s1) >>> 0;
+    }
+    let [a, b, c, d, e, f, g, h] = hash;
+    for (let index = 0; index < 64; index += 1) {
+      const s1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^ rotateRight(e, 25);
+      const choice = (e & f) ^ (~e & g);
+      const temp1 = (h + s1 + choice + constants[index] + schedule[index]) >>> 0;
+      const s0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^ rotateRight(a, 22);
+      const majority = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (s0 + majority) >>> 0;
+      h = g; g = f; f = e; e = (d + temp1) >>> 0;
+      d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+    }
+    hash[0] = (hash[0] + a) >>> 0; hash[1] = (hash[1] + b) >>> 0;
+    hash[2] = (hash[2] + c) >>> 0; hash[3] = (hash[3] + d) >>> 0;
+    hash[4] = (hash[4] + e) >>> 0; hash[5] = (hash[5] + f) >>> 0;
+    hash[6] = (hash[6] + g) >>> 0; hash[7] = (hash[7] + h) >>> 0;
+    blockLength = 0;
+  };
+  const pushByte = (byte: number) => {
+    block[blockLength++] = byte;
+    byteLength += 1;
+    if (blockLength === 64) compress();
+  };
+  words.forEach((word, wordIndex) => {
+    if (wordIndex > 0) pushByte(10);
+    for (let index = 0; index < word.length; index += 1) pushByte(word.charCodeAt(index));
+  });
+  const bitLength = byteLength * 8;
+  block[blockLength++] = 0x80;
+  if (blockLength > 56) {
+    block.fill(0, blockLength);
+    compress();
+  }
+  block.fill(0, blockLength, 56);
+  const high = Math.floor(bitLength / 0x100000000);
+  const low = bitLength >>> 0;
+  for (let index = 0; index < 4; index += 1) {
+    block[56 + index] = (high >>> (24 - index * 8)) & 0xff;
+    block[60 + index] = (low >>> (24 - index * 8)) & 0xff;
+  }
+  compress();
+  return hash.map((part) => part.toString(16).padStart(8, '0')).join('');
+}
+
+export function validateDutchDictionaryWords(words: readonly string[]): DutchDictionaryStatus {
+  const actualWordCount = words.length;
+  const expectedWordCount: number = DUTCH_DICTIONARY_SOURCE.wordCount;
+  if (actualWordCount !== expectedWordCount) {
+    return {
+      ready: false,
+      error: `expected ${expectedWordCount.toLocaleString()} words, found ${actualWordCount.toLocaleString()}`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  let previous = '';
+  for (const word of words) {
+    if (!/^[A-Z]{2,15}$/.test(word)) {
+      return { ready: false, error: `invalid playable entry "${word}"`, source: DUTCH_DICTIONARY_SOURCE };
+    }
+    if (word <= previous) {
+      return {
+        ready: false,
+        error: `word pack is not strictly sorted or contains a duplicate near "${word}"`,
+        source: DUTCH_DICTIONARY_SOURCE,
+      };
+    }
+    previous = word;
+  }
+  const wordSet = new Set(words);
+  packagedDictionarySet = wordSet;
+  const missingWord = REQUIRED_DUTCH_WORDS.find((word) => !wordSet.has(word));
+  if (missingWord) {
+    return {
+      ready: false,
+      error: `required representative word "${missingWord}" is missing`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  const invalidName = REJECTED_PROPER_NAMES.find((word) => wordSet.has(word));
+  if (invalidName) {
+    return {
+      ready: false,
+      error: `rejected proper name "${invalidName}" is present`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  const actualHash = sha256WordSequence(words);
+  if (actualHash !== DUTCH_DICTIONARY_METADATA.dictionarySha256) {
+    return {
+      ready: false,
+      error: `dictionary integrity check failed (${actualHash.slice(0, 12)})`,
+      source: DUTCH_DICTIONARY_SOURCE,
+    };
+  }
+  return { ready: true, wordCount: actualWordCount, source: DUTCH_DICTIONARY_SOURCE };
+}
+
+function validateDutchDictionary(): DutchDictionaryStatus {
+  return validateDutchDictionaryWords(PACKAGED_DUTCH_WORDS);
+}
+
+export function getDutchDictionaryStatus(): DutchDictionaryStatus {
+  dictionaryStatus ??= validateDutchDictionary();
+  return dictionaryStatus;
+}
+
+export function getDutchWords(): readonly string[] {
+  const status = getDutchDictionaryStatus();
+  if (!status.ready) throw new DictionaryLoadError(status.error);
+  return PACKAGED_DUTCH_WORDS;
+}
+
+export const DUTCH_WORDS = PACKAGED_DUTCH_WORDS;
+
 export function createEmptyBoard(): Board {
   return Array.from({ length: BOARD_SIZE }, () =>
     Array<string>(BOARD_SIZE).fill(''),
@@ -392,8 +581,33 @@ function readLine(board: Board, row: number, col: number, direction: Direction) 
   return word;
 }
 
-function getCrossWord(board: Board, row: number, col: number, direction: Direction) {
-  return readLine(board, row, col, direction === 'H' ? 'V' : 'H');
+function getCrossWord(
+  board: Board,
+  row: number,
+  col: number,
+  direction: Direction,
+  placedLetter: string,
+) {
+  const crossDirection: Direction = direction === 'H' ? 'V' : 'H';
+  const rowStep = crossDirection === 'V' ? 1 : 0;
+  const colStep = crossDirection === 'H' ? 1 : 0;
+  let startRow = row - rowStep;
+  let startCol = col - colStep;
+  let prefix = '';
+  while (getCell(board, startRow, startCol)) {
+    prefix = getCell(board, startRow, startCol) + prefix;
+    startRow -= rowStep;
+    startCol -= colStep;
+  }
+  let suffix = '';
+  let scanRow = row + rowStep;
+  let scanCol = col + colStep;
+  while (getCell(board, scanRow, scanCol)) {
+    suffix += getCell(board, scanRow, scanCol);
+    scanRow += rowStep;
+    scanCol += colStep;
+  }
+  return prefix + placedLetter + suffix;
 }
 
 function scoreMove(
@@ -404,7 +618,6 @@ function scoreMove(
   direction: Direction,
   blankIndexes: number[],
 ) {
-  const placementBoard = board.map((boardRow) => [...boardRow]);
   const newTiles: Array<{ row: number; col: number; letter: string; letterIndex: number }> = [];
   let mainScore = 0;
   let mainWordMultiplier = 1;
@@ -418,7 +631,6 @@ function scoreMove(
       mainScore += value * (premium?.letterMultiplier ?? 1);
       mainWordMultiplier *= premium?.wordMultiplier ?? 1;
       newTiles.push({ row: currentRow, col: currentCol, letter, letterIndex });
-      placementBoard[currentRow][currentCol] = letter;
     } else {
       mainScore += LETTER_VALUES[letter] ?? 0;
     }
@@ -432,28 +644,23 @@ function scoreMove(
   const colStep = crossDirection === 'H' ? 1 : 0;
 
   for (const tile of newTiles) {
-    let startRow = tile.row;
-    let startCol = tile.col;
-    while (getCell(placementBoard, startRow - rowStep, startCol - colStep)) {
-      startRow -= rowStep;
-      startCol -= colStep;
+    const premium = PREMIUMS[`${tile.row}:${tile.col}`];
+    const tileValue = blankIndexes.includes(tile.letterIndex) ? 0 : LETTER_VALUES[tile.letter] ?? 0;
+    let wordScore = tileValue * (premium?.letterMultiplier ?? 1);
+    const wordMultiplier = premium?.wordMultiplier ?? 1;
+    let wordLength = 1;
+    let scanRow = tile.row - rowStep;
+    let scanCol = tile.col - colStep;
+    while (getCell(board, scanRow, scanCol)) {
+      wordScore += LETTER_VALUES[getCell(board, scanRow, scanCol)] ?? 0;
+      wordLength += 1;
+      scanRow -= rowStep;
+      scanCol -= colStep;
     }
-
-    let wordScore = 0;
-    let wordMultiplier = 1;
-    let wordLength = 0;
-    let scanRow = startRow;
-    let scanCol = startCol;
-    while (isInside(scanRow, scanCol) && getCell(placementBoard, scanRow, scanCol)) {
-      const letter = getCell(placementBoard, scanRow, scanCol);
-      if (scanRow === tile.row && scanCol === tile.col) {
-        const premium = PREMIUMS[`${scanRow}:${scanCol}`];
-        const value = blankIndexes.includes(tile.letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
-        wordScore += value * (premium?.letterMultiplier ?? 1);
-        wordMultiplier *= premium?.wordMultiplier ?? 1;
-      } else {
-        wordScore += LETTER_VALUES[letter] ?? 0;
-      }
+    scanRow = tile.row + rowStep;
+    scanCol = tile.col + colStep;
+    while (getCell(board, scanRow, scanCol)) {
+      wordScore += LETTER_VALUES[getCell(board, scanRow, scanCol)] ?? 0;
       wordLength += 1;
       scanRow += rowStep;
       scanCol += colStep;
@@ -502,6 +709,92 @@ function canUseRack(
   return { valid: newTiles > 0, newTiles, blankIndexes };
 }
 
+function consumeRackForWord(rackCounts: Map<string, number>, word: string) {
+  const remaining = new Map(rackCounts);
+  const blankIndexes: number[] = [];
+  for (const [letterIndex, letter] of [...word].entries()) {
+    const available = remaining.get(letter) ?? 0;
+    const blanks = remaining.get('?') ?? 0;
+    if (available > 0) {
+      remaining.set(letter, available - 1);
+    } else if (blanks > 0) {
+      remaining.set('?', blanks - 1);
+      blankIndexes.push(letterIndex);
+    } else {
+      return null;
+    }
+  }
+  return blankIndexes;
+}
+
+function scoreEmptyBoardMove(
+  word: string,
+  row: number,
+  col: number,
+  direction: Direction,
+  blankIndexes: number[],
+) {
+  let score = 0;
+  let wordMultiplier = 1;
+  for (const [letterIndex, letter] of [...word].entries()) {
+    const tileRow = row + (direction === 'V' ? letterIndex : 0);
+    const tileCol = col + (direction === 'H' ? letterIndex : 0);
+    const premium = PREMIUMS[`${tileRow}:${tileCol}`];
+    const value = blankIndexes.includes(letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
+    score += value * (premium?.letterMultiplier ?? 1);
+    wordMultiplier *= premium?.wordMultiplier ?? 1;
+  }
+  return score * wordMultiplier + (word.length === RACK_SIZE ? 40 : 0);
+}
+
+function createLetterCounts(letters: Iterable<string>) {
+  const counts = new Uint8Array(26);
+  for (const letter of letters) {
+    const index = letter.charCodeAt(0) - 65;
+    if (index >= 0 && index < counts.length) counts[index] += 1;
+  }
+  return counts;
+}
+
+function canSupplyWord(
+  wordCounts: Uint8Array,
+  rackCounts: Uint8Array,
+  boardCounts: Uint8Array,
+  blankCount: number,
+) {
+  let blanksNeeded = 0;
+  for (let index = 0; index < wordCounts.length; index += 1) {
+    blanksNeeded += Math.max(0, wordCounts[index] - rackCounts[index] - boardCounts[index]);
+    if (blanksNeeded > blankCount) return false;
+  }
+  return true;
+}
+
+function getBoardLetterCounts(board: Board) {
+  const all = createLetterCounts(board.flat());
+  const rows = board.map((row) => createLetterCounts(row));
+  const columns = Array.from({ length: BOARD_SIZE }, (_, col) =>
+    createLetterCounts(board.map((row) => row[col])),
+  );
+  return { all, rows, columns };
+}
+
+function getBoardAnchors(board: Board) {
+  const horizontal = Array.from({ length: BOARD_SIZE }, () => [] as number[]);
+  const vertical = Array.from({ length: BOARD_SIZE }, () => [] as number[]);
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      if (board[row][col] || board[row - 1]?.[col] || board[row + 1]?.[col]) {
+        horizontal[row].push(col);
+      }
+      if (board[row][col] || board[row]?.[col - 1] || board[row]?.[col + 1]) {
+        vertical[col].push(row);
+      }
+    }
+  }
+  return { horizontal, vertical };
+}
+
 function isLegalPlacement(
   board: Board,
   word: string,
@@ -516,14 +809,6 @@ function isLegalPlacement(
   let intersects = false;
   let touches = false;
   const crossWords: string[] = [];
-  const placementBoard = board.map((boardRow) => [...boardRow]);
-  let placementRow = row;
-  let placementCol = col;
-  for (const letter of word) {
-    placementBoard[placementRow][placementCol] = letter;
-    placementRow += direction === 'V' ? 1 : 0;
-    placementCol += direction === 'H' ? 1 : 0;
-  }
 
   const beforeRow = row - (direction === 'V' ? 1 : 0);
   const beforeCol = col - (direction === 'H' ? 1 : 0);
@@ -541,7 +826,7 @@ function isLegalPlacement(
     if (hasAdjacentLetter(board, currentRow, currentCol)) touches = true;
 
     if (!existing) {
-      const cross = getCrossWord(placementBoard, currentRow, currentCol, direction);
+      const cross = getCrossWord(board, currentRow, currentCol, direction, letter);
       if (cross.length > 1) {
         crossWords.push(cross);
         if (!dictionary.has(cross)) return null;
@@ -573,21 +858,75 @@ function isLegalPlacement(
 export function findBestMoves(
   board: Board,
   rack: string,
-  words: string[] = DUTCH_WORDS,
+  words: readonly string[] = getDutchWords(),
   limit = 8,
 ): Move[] {
-  const dictionary = new Set(words.map((word) => word.toUpperCase()));
+  const dictionary =
+    words === PACKAGED_DUTCH_WORDS
+      ? (packagedDictionarySet ??= new Set(getDutchWords()))
+      : new Set(words.map((word) => word.toUpperCase()));
   const rackCounts = new Map<string, number>();
-  for (const letter of rack.toUpperCase().replace(/[^A-Z?]/g, '')) {
+  const normalizedRack = rack.toUpperCase().replace(/[^A-Z?]/g, '');
+  if (normalizedRack.length > RACK_SIZE) {
+    throw new Error(`Rack contains ${normalizedRack.length} tiles; Wordfeud allows at most ${RACK_SIZE}.`);
+  }
+  const suppliedBlankCount = [...normalizedRack].filter((letter) => letter === '?').length;
+  if (suppliedBlankCount > 2) {
+    throw new Error(`Rack contains ${suppliedBlankCount} blanks; a Wordfeud set contains only 2.`);
+  }
+  for (const letter of normalizedRack) {
     rackCounts.set(letter, (rackCounts.get(letter) ?? 0) + 1);
   }
+  const rackLetterCounts = createLetterCounts(normalizedRack);
+  const blankCount = rackCounts.get('?') ?? 0;
+  const boardLetterCounts = getBoardLetterCounts(board);
+  const boardHasLetters = hasLetters(board);
+  const boardAnchors = getBoardAnchors(board);
 
   const moves: Move[] = [];
   for (const word of dictionary) {
     if (word.length > BOARD_SIZE || word.length < 2) continue;
+    const wordCounts = createLetterCounts(word);
+    if (!canSupplyWord(wordCounts, rackLetterCounts, boardLetterCounts.all, blankCount)) continue;
+    if (!boardHasLetters) {
+      const blankIndexes = consumeRackForWord(rackCounts, word);
+      if (!blankIndexes) continue;
+      for (const direction of ['H', 'V'] as Direction[]) {
+        const line = Math.floor(BOARD_SIZE / 2);
+        const firstStart = Math.max(0, line - word.length + 1);
+        const lastStart = Math.min(line, BOARD_SIZE - word.length);
+        for (let start = firstStart; start <= lastStart; start += 1) {
+          const row = direction === 'H' ? line : start;
+          const col = direction === 'H' ? start : line;
+          moves.push({
+            word,
+            score: scoreEmptyBoardMove(word, row, col, direction, blankIndexes),
+            direction,
+            row,
+            col,
+            crossWords: [],
+            tilesUsed: word.length,
+          });
+        }
+      }
+      continue;
+    }
     for (const direction of ['H', 'V'] as Direction[]) {
-      for (let row = 0; row < BOARD_SIZE; row += 1) {
-        for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const lineCounts = direction === 'H' ? boardLetterCounts.rows : boardLetterCounts.columns;
+      const lineAnchors = direction === 'H' ? boardAnchors.horizontal : boardAnchors.vertical;
+      for (let line = 0; line < BOARD_SIZE; line += 1) {
+        if (lineAnchors[line].length === 0) continue;
+        if (!canSupplyWord(wordCounts, rackLetterCounts, lineCounts[line], blankCount)) continue;
+        const possibleStarts = new Uint8Array(BOARD_SIZE);
+        for (const anchor of lineAnchors[line]) {
+          const firstStart = Math.max(0, anchor - word.length + 1);
+          const lastStart = Math.min(anchor, BOARD_SIZE - word.length);
+          for (let start = firstStart; start <= lastStart; start += 1) possibleStarts[start] = 1;
+        }
+        for (let start = 0; start <= BOARD_SIZE - word.length; start += 1) {
+          if (!possibleStarts[start]) continue;
+          const row = direction === 'H' ? line : start;
+          const col = direction === 'H' ? start : line;
           const rackResult = canUseRack(
             board,
             rackCounts,
@@ -627,17 +966,14 @@ export function findBestMoves(
     }
   }
 
+  const seenMoves = new Set<string>();
   return moves
     .sort((a, b) => b.score - a.score || b.word.length - a.word.length)
-    .filter(
-      (move, index, allMoves) =>
-        allMoves.findIndex(
-          (candidate) =>
-            candidate.word === move.word &&
-            candidate.row === move.row &&
-            candidate.col === move.col &&
-            candidate.direction === move.direction,
-        ) === index,
-    )
+    .filter((move) => {
+      const key = `${move.word}:${move.row}:${move.col}:${move.direction}`;
+      if (seenMoves.has(key)) return false;
+      seenMoves.add(key);
+      return true;
+    })
     .slice(0, limit);
 }
