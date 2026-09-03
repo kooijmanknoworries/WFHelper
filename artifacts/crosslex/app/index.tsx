@@ -48,6 +48,11 @@ type ScanInfo = {
   warnings: string[];
 };
 
+type SuggestionSession = {
+  board: Board;
+  rack: string;
+};
+
 function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
   if (value === ScanBoardInputMimeType['image/png']) return value;
   if (value === ScanBoardInputMimeType['image/webp']) return value;
@@ -140,14 +145,16 @@ function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
 
 function BoardPreview({
   board,
-  previewMove,
+  highlightedMove,
+  highlightBaseBoard,
   selectedCell,
   editing,
   onSelect,
   colors,
 }: {
   board: Board;
-  previewMove: Move | null;
+  highlightedMove: Move | null;
+  highlightBaseBoard: Board | null;
   selectedCell: { row: number; col: number } | null;
   editing: boolean;
   onSelect: (row: number, col: number) => void;
@@ -158,19 +165,21 @@ function BoardPreview({
       {board.map((row, rowIndex) => (
         <View key={`row-${rowIndex}`} style={styles.boardRow}>
           {row.map((letter, colIndex) => {
-            const previewOffset =
-              previewMove?.direction === 'H' && previewMove.row === rowIndex
-                ? colIndex - previewMove.col
-                : previewMove?.direction === 'V' && previewMove.col === colIndex
-                  ? rowIndex - previewMove.row
+            const moveOffset =
+              highlightedMove?.direction === 'H' && highlightedMove.row === rowIndex
+                ? colIndex - highlightedMove.col
+                : highlightedMove?.direction === 'V' && highlightedMove.col === colIndex
+                  ? rowIndex - highlightedMove.row
                   : -1;
-            const previewLetter =
-              !letter &&
-              previewMove &&
-              previewOffset >= 0 &&
-              previewOffset < previewMove.word.length
-                ? previewMove.word[previewOffset]
-                : '';
+            const isHighlightedPlacement =
+              !editing &&
+              Boolean(
+                highlightedMove &&
+                  highlightBaseBoard?.[rowIndex]?.[colIndex] === '' &&
+                  moveOffset >= 0 &&
+                  moveOffset < highlightedMove.word.length &&
+                  letter,
+              );
             const isSelected =
               selectedCell?.row === rowIndex && selectedCell.col === colIndex;
             const premium = getPremiumLabel(rowIndex, colIndex);
@@ -194,10 +203,10 @@ function BoardPreview({
                 style={({ pressed }) => [
                   styles.boardCell,
                   {
-                    backgroundColor: letter
-                      ? colors.tile
-                      : previewLetter
-                        ? colors.suggestion
+                    backgroundColor: isHighlightedPlacement
+                      ? colors.accent
+                      : letter
+                        ? colors.tile
                       : premiumBackground || colors.boardCell,
                     borderColor: colors.boardBorder,
                     opacity: pressed && editing ? 0.7 : 1,
@@ -205,9 +214,9 @@ function BoardPreview({
                   isSelected && { borderColor: colors.primary, borderWidth: 2 },
                 ]}
               >
-                {letter || previewLetter ? (
+                {letter ? (
                     <Text style={[styles.boardLetter, { color: colors.tileForeground }]}>
-                    {letter || previewLetter}
+                    {letter}
                   </Text>
                 ) : (
                     <Text style={[styles.premiumText, { color: colors.premiumForeground }]}>
@@ -308,6 +317,7 @@ export default function HomeScreen() {
   const [results, setResults] = useState<Move[]>([]);
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
   const [placedMove, setPlacedMove] = useState<Move | null>(null);
+  const [suggestionSession, setSuggestionSession] = useState<SuggestionSession | null>(null);
   const [isSolving, setIsSolving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
@@ -338,6 +348,30 @@ export default function HomeScreen() {
     setResults([]);
     setSelectedMove(null);
     setPlacedMove(null);
+    setSuggestionSession(null);
+  };
+
+  const beginSuggestionSession = (sourceBoard: Board, sourceRack: string, nextResults: Move[]) => {
+    setSuggestionSession({ board: sourceBoard, rack: sourceRack });
+    setResults(nextResults);
+    setEditingBoard(false);
+    setSelectedCell(null);
+
+    const bestMove = nextResults[0] ?? null;
+    if (!bestMove) {
+      setBoard(sourceBoard);
+      setRack(sourceRack);
+      setSelectedMove(null);
+      setPlacedMove(null);
+      return { board: sourceBoard, rack: sourceRack };
+    }
+
+    const preview = applyMove(sourceBoard, sourceRack, bestMove);
+    setBoard(preview.board);
+    setRack(preview.rack);
+    setSelectedMove(bestMove);
+    setPlacedMove(bestMove);
+    return preview;
   };
 
   const handleImport = async () => {
@@ -347,6 +381,7 @@ export default function HomeScreen() {
     setResults([]);
     setSelectedMove(null);
     setPlacedMove(null);
+    setSuggestionSession(null);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -382,23 +417,18 @@ export default function HomeScreen() {
         0,
       );
 
-      setBoard(scannedBoard);
-      setRack(scannedRack);
       setScanInfo({
         confidence: scan.confidence,
         detectedBoardTiles,
         detectedRackTiles: scannedRack.length,
         warnings: scan.warnings,
       });
-      setEditingBoard(true);
-      setSelectedCell(null);
       const scannedResults =
         scannedRack.length >= 2 ? findBestMoves(scannedBoard, scannedRack) : [];
-      setResults(scannedResults);
-      setSelectedMove(scannedResults[0] ?? null);
+      const preview = beginSuggestionSession(scannedBoard, scannedRack, scannedResults);
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ board: scannedBoard, rack: scannedRack }),
+        JSON.stringify({ board: preview.board, rack: preview.rack }),
       );
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -415,11 +445,14 @@ export default function HomeScreen() {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await new Promise((resolve) => setTimeout(resolve, 180));
-      const nextResults = findBestMoves(board, rack);
-      setResults(nextResults);
-      setSelectedMove(nextResults[0] ?? null);
-      setPlacedMove(null);
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board, rack }));
+      const sourceBoard = suggestionSession?.board ?? board;
+      const sourceRack = suggestionSession?.rack ?? rack;
+      const nextResults = findBestMoves(sourceBoard, sourceRack);
+      const preview = beginSuggestionSession(sourceBoard, sourceRack, nextResults);
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ board: preview.board, rack: preview.rack }),
+      );
     } catch {
       setScanError(t('solverError'));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -431,13 +464,13 @@ export default function HomeScreen() {
   const handleApplyMove = async (move: Move) => {
     setScanError(null);
     try {
-      const { board: nextBoard, rack: nextRack } = applyMove(board, rack, move);
-      const nextResults = nextRack.length >= 2 ? findBestMoves(nextBoard, nextRack) : [];
+      const sourceBoard = suggestionSession?.board ?? board;
+      const sourceRack = suggestionSession?.rack ?? rack;
+      const { board: nextBoard, rack: nextRack } = applyMove(sourceBoard, sourceRack, move);
 
       setBoard(nextBoard);
       setRack(nextRack);
-      setResults(nextResults);
-      setSelectedMove(null);
+      setSelectedMove(move);
       setPlacedMove(move);
       setEditingBoard(false);
       setSelectedCell(null);
@@ -458,6 +491,7 @@ export default function HomeScreen() {
     setResults([]);
     setSelectedMove(null);
     setPlacedMove(null);
+    setSuggestionSession(null);
     setEditingBoard(false);
     setSelectedCell(null);
   };
@@ -583,7 +617,8 @@ export default function HomeScreen() {
 
           <BoardPreview
             board={board}
-            previewMove={editingBoard ? null : selectedMove}
+              highlightedMove={editingBoard ? null : placedMove}
+              highlightBaseBoard={suggestionSession?.board ?? null}
             selectedCell={selectedCell}
             editing={editingBoard}
             onSelect={(row, col) => setSelectedCell({ row, col })}
@@ -652,6 +687,7 @@ export default function HomeScreen() {
               setResults([]);
               setSelectedMove(null);
               setPlacedMove(null);
+               setSuggestionSession(null);
             }}
             placeholder={t('rackPlaceholder')}
             placeholderTextColor={colors.mutedForeground}
