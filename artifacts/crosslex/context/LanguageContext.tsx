@@ -99,6 +99,17 @@ const translations = {
     readyWhenYouAre: 'Klaar wanneer jij dat bent',
     found: (count: number) => `${count} gevonden`,
     movePlaced: (word: string) => `Zet ${word} geplaatst.`,
+    rememberPosition: 'ONTHOUD DEZE POSITIE',
+    wordfeudHandoffPosition: (word: string, direction: string, row: number, column: number) =>
+      `${word} · ${direction} · rij ${row}, kolom ${column}`,
+    openWordfeud: (word: string) => `Onthoud positie van ${word} en open Wordfeud`,
+    wordfeudHandoffHint: 'Neem woord en startvak over in Wordfeud.',
+    wordfeudNotInstalledTitle: 'Wordfeud niet gevonden',
+    wordfeudNotInstalledMessage:
+      'Installeer of open Wordfeud handmatig. De gekozen positie blijft zichtbaar wanneer je terugkomt.',
+    wordfeudManualSwitchTitle: 'Schakel handmatig naar Wordfeud',
+    wordfeudManualSwitchMessage: (word: string, direction: string, row: number, column: number) =>
+      `Onthoud ${word}: ${direction}, rij ${row}, kolom ${column}. Open daarna Wordfeud via de appkiezer.`,
     placementMeta: (direction: string, row: number, column: number, tiles: number, unit: string) =>
       `${direction} · rij ${row}, kolom ${column} · ${tiles} ${unit}`,
     horizontal: 'Horizontaal',
@@ -215,6 +226,17 @@ const translations = {
     readyWhenYouAre: 'Ready when you are',
     found: (count: number) => `${count} found`,
     movePlaced: (word: string) => `Move ${word} placed.`,
+    rememberPosition: 'REMEMBER THIS POSITION',
+    wordfeudHandoffPosition: (word: string, direction: string, row: number, column: number) =>
+      `${word} · ${direction} · row ${row}, col ${column}`,
+    openWordfeud: (word: string) => `Remember ${word}'s position and open Wordfeud`,
+    wordfeudHandoffHint: 'Copy the word and starting square into Wordfeud.',
+    wordfeudNotInstalledTitle: 'Wordfeud not found',
+    wordfeudNotInstalledMessage:
+      'Install or open Wordfeud manually. The selected position remains visible when you return.',
+    wordfeudManualSwitchTitle: 'Switch to Wordfeud manually',
+    wordfeudManualSwitchMessage: (word: string, direction: string, row: number, column: number) =>
+      `Remember ${word}: ${direction}, row ${row}, col ${column}. Then open Wordfeud from the app switcher.`,
     placementMeta: (direction: string, row: number, column: number, tiles: number, unit: string) =>
       `${direction} · row ${row}, col ${column} · ${tiles} ${unit}`,
     horizontal: 'Horizontal',
@@ -251,6 +273,14 @@ export type Translator = {
   (key: 'recognizedSummary', boardTiles: number, rackTiles: number): string;
   (key: 'found', count: number): string;
   (key: 'movePlaced', word: string): string;
+  (key: 'openWordfeud', word: string): string;
+  (
+    key: 'wordfeudHandoffPosition' | 'wordfeudManualSwitchMessage',
+    word: string,
+    direction: string,
+    row: number,
+    column: number,
+  ): string;
   (key: 'placementMeta', direction: string, row: number, column: number, tiles: number, unit: string): string;
   (key: 'validCrossings', words: string): string;
   (key: 'taalTikAllowed', word: string): string;

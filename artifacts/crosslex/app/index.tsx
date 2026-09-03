@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useAudioPlayer } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -24,7 +26,6 @@ import {
   checkWordfeudWord,
   scanWordfeudBoard,
   ScanBoardInputMimeType,
-  type ScanBoardInputMimeType as ScanBoardMimeType,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage, type Translator } from '@/context/LanguageContext';
@@ -43,6 +44,9 @@ import {
 
 const STORAGE_KEY = '@crosslex/position';
 const DEVICE_ID_STORAGE_KEY = '@crosslex/device-id';
+const WORDFEUD_HANDOFF_STORAGE_KEY = '@crosslex/wordfeud-handoff';
+const WORDFEUD_ANDROID_PACKAGE = 'com.hbwares.wordfeud.free';
+const MAX_SCAN_IMAGE_WIDTH = 1400;
 const DEVICE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -238,12 +242,6 @@ function RewardCelebration({
       </Animated.View>
     </Animated.View>
   );
-}
-
-function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
-  if (value === ScanBoardInputMimeType['image/png']) return value;
-  if (value === ScanBoardInputMimeType['image/webp']) return value;
-  return ScanBoardInputMimeType['image/jpeg'];
 }
 
 function createDeviceId(): string {
@@ -664,6 +662,35 @@ export default function HomeScreen() {
     }
   };
 
+  const openWordfeud = async (move: Move) => {
+    const direction = move.direction === 'H' ? t('horizontal') : t('vertical');
+    const handoff = {
+      word: move.word,
+      direction,
+      row: move.row + 1,
+      column: move.col + 1,
+      savedAt: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem(WORDFEUD_HANDOFF_STORAGE_KEY, JSON.stringify(handoff)).catch(
+      () => undefined,
+    );
+
+    if (Platform.OS === 'android') {
+      try {
+        await IntentLauncher.openApplication(WORDFEUD_ANDROID_PACKAGE);
+        return;
+      } catch {
+        Alert.alert(t('wordfeudNotInstalledTitle'), t('wordfeudNotInstalledMessage'));
+        return;
+      }
+    }
+
+    Alert.alert(
+      t('wordfeudManualSwitchTitle'),
+      t('wordfeudManualSwitchMessage', move.word, direction, move.row + 1, move.col + 1),
+    );
+  };
+
   const updateBoardCell = (value: string) => {
     if (!selectedCell) return;
     const nextBoard = board.map((row) => [...row]);
@@ -715,22 +742,34 @@ export default function HomeScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 0.9,
-        base64: true,
+        quality: 0.8,
       });
       if (result.canceled) return;
 
       const asset = result.assets[0];
-      if (!asset?.base64) {
+      if (!asset?.uri) {
         throw new Error(t('screenshotPreparationError'));
       }
 
       setScreenshotUri(asset.uri);
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: Math.min(asset.width || MAX_SCAN_IMAGE_WIDTH, MAX_SCAN_IMAGE_WIDTH) } }],
+        {
+          compress: 0.72,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        },
+      );
+      if (!preparedImage.base64) {
+        throw new Error(t('screenshotPreparationError'));
+      }
+
       const deviceId = await getDeviceId();
       const scan = await scanWordfeudBoard(
         {
-          imageBase64: asset.base64,
-          mimeType: getScanMimeType(asset.mimeType),
+          imageBase64: preparedImage.base64,
+          mimeType: ScanBoardInputMimeType['image/jpeg'],
         },
         { headers: { 'X-CrossLex-Device-ID': deviceId } },
       );
@@ -747,18 +786,45 @@ export default function HomeScreen() {
         detectedRackTiles: scannedRack.length,
         warnings: scan.warnings,
       });
-      await checkDutchDictionaryForUpdates();
-      const scannedResults =
-        scannedRack.length >= 2 ? findBestMoves(scannedBoard, scannedRack) : [];
-      const preview = beginSuggestionSession(scannedBoard, scannedRack, scannedResults);
+      setBoard(scannedBoard);
+      setRack(scannedRack);
+      setSuggestionSession({ board: scannedBoard, rack: scannedRack });
+      setEditingBoard(false);
+      setSelectedCell(null);
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ board: preview.board, rack: preview.rack }),
+        JSON.stringify({ board: scannedBoard, rack: scannedRack }),
       );
-      if (scannedResults[0]) {
-        await celebrateMove(scannedResults[0]);
-      } else if (feedbackSettings.hapticFeedback) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsImporting(false);
+
+      if (scannedRack.length < 2) {
+        if (feedbackSettings.hapticFeedback) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        return;
+      }
+
+      setIsSolving(true);
+      try {
+        await checkDutchDictionaryForUpdates();
+        const scannedResults = findBestMoves(scannedBoard, scannedRack);
+        const preview = beginSuggestionSession(scannedBoard, scannedRack, scannedResults);
+        await AsyncStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ board: preview.board, rack: preview.rack }),
+        );
+        if (scannedResults[0]) {
+          await celebrateMove(scannedResults[0]);
+        } else if (feedbackSettings.hapticFeedback) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch {
+        setScanError(t('solverError'));
+        if (feedbackSettings.hapticFeedback) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+      } finally {
+        setIsSolving(false);
       }
     } catch (error) {
       setScanError(getScanErrorMessage(error, t));
@@ -979,29 +1045,29 @@ export default function HomeScreen() {
         <Pressable
           testID="import-screenshot-button"
           onPress={handleImport}
-          disabled={isImporting}
+          disabled={isImporting || isSolving}
           style={({ pressed }) => [
             styles.scanButton,
             {
               backgroundColor: colors.primary,
-              opacity: pressed || isImporting ? 0.7 : 1,
+              opacity: pressed || isImporting || isSolving ? 0.7 : 1,
             },
           ]}
         >
-          {isImporting ? (
+          {isImporting || isSolving ? (
             <ActivityIndicator color={colors.primaryForeground} size="small" />
           ) : (
             <Ionicons name="scan-outline" size={20} color={colors.primaryForeground} />
           )}
           <View style={styles.scanButtonCopy}>
             <Text style={[styles.scanButtonTitle, { color: colors.primaryForeground }]}>
-              {isImporting ? t('readingBoard') : t('scanScreenshot')}
+              {isImporting ? t('readingBoard') : isSolving ? t('findingMoves') : t('scanScreenshot')}
             </Text>
             <Text style={[styles.scanButtonHint, { color: colors.primaryForeground }]}>
               {t('scanHint')}
             </Text>
           </View>
-          {!isImporting && (
+          {!isImporting && !isSolving && (
             <Ionicons name="image-outline" size={18} color={colors.primaryForeground} />
           )}
         </Pressable>
@@ -1156,6 +1222,51 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {placedMove && (
+          <View
+            style={[
+              styles.wordfeudHandoff,
+              { backgroundColor: colors.foreground, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.wordfeudHandoffHeader}>
+              <View style={[styles.wordfeudHandoffIcon, { backgroundColor: colors.accent }]}>
+                <Ionicons name="phone-portrait-outline" size={20} color={colors.accentForeground} />
+              </View>
+              <View style={styles.wordfeudHandoffCopy}>
+                <Text style={[styles.wordfeudHandoffKicker, { color: colors.accent }]}>
+                  {t('rememberPosition')}
+                </Text>
+                <Text style={[styles.wordfeudHandoffPosition, { color: colors.card }]}>
+                  {t(
+                    'wordfeudHandoffPosition',
+                    placedMove.word,
+                    placedMove.direction === 'H' ? t('horizontal') : t('vertical'),
+                    placedMove.row + 1,
+                    placedMove.col + 1,
+                  )}
+                </Text>
+                <Text style={[styles.wordfeudHandoffHint, { color: colors.mutedForeground }]}>
+                  {t('wordfeudHandoffHint')}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void openWordfeud(placedMove)}
+              style={({ pressed }) => [
+                styles.openWordfeudButton,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.76 : 1 },
+              ]}
+            >
+              <Ionicons name="open-outline" size={18} color={colors.primaryForeground} />
+              <Text style={[styles.openWordfeudButtonText, { color: colors.primaryForeground }]}>
+                {t('openWordfeud', placedMove.word)}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {results.length > 0 ? (
           <View style={[styles.resultsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {results.map((move, index) => (
@@ -1269,6 +1380,15 @@ const styles = StyleSheet.create({
   resultsTitleColumn: { flex: 1, minWidth: 0, paddingRight: 12 },
   placedBanner: { borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   placedBannerText: { flex: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  wordfeudHandoff: { borderRadius: 18, borderWidth: 1, padding: 14, marginTop: 10, gap: 13 },
+  wordfeudHandoffHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  wordfeudHandoffIcon: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  wordfeudHandoffCopy: { flex: 1, minWidth: 0 },
+  wordfeudHandoffKicker: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1.25 },
+  wordfeudHandoffPosition: { fontSize: 15, lineHeight: 21, fontFamily: 'Inter_700Bold', marginTop: 4 },
+  wordfeudHandoffHint: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  openWordfeudButton: { minHeight: 48, borderRadius: 13, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  openWordfeudButtonText: { flexShrink: 1, textAlign: 'center', fontSize: 12, lineHeight: 16, fontFamily: 'Inter_700Bold' },
   resultCount: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
   resultCountText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   resultsCard: { borderRadius: 16, borderWidth: 1, marginTop: 12, overflow: 'hidden' },
