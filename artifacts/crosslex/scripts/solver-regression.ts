@@ -285,4 +285,55 @@ function assertSavedPositionMatchesVisibleResult(applied: ReturnType<typeof appl
 assertSavedPositionMatchesVisibleResult(horizontalApplied);
 assertSavedPositionMatchesVisibleResult(verticalApplied);
 
+const alternatePosition = createEmptyBoard();
+const alternateRack = 'AT';
+const alternateResults = findBestMoves(
+  alternatePosition,
+  alternateRack,
+  ['AT', 'TA'],
+  20,
+);
+assert(
+  alternateResults.length >= 2,
+  'The fixed-position fixture must provide at least two alternatives.',
+);
+
+const resultSnapshot = JSON.stringify(alternateResults);
+const bestPreview = applyMove(alternatePosition, alternateRack, alternateResults[0]);
+assert(
+  bestPreview.rack === '',
+  'Starting a solve must preview the best move and consume its rack tiles.',
+);
+assert(
+  bestPreview.placedLetters.length === alternateResults[0].tilesUsed,
+  'The best preview must highlight every newly placed tile.',
+);
+
+const alternateMove = alternateResults.find((move) => {
+  const sequentialPreview = applyMove(bestPreview.board, bestPreview.rack, move);
+  const fixedPositionPreview = applyMove(alternatePosition, alternateRack, move);
+  return (
+    JSON.stringify(sequentialPreview.board) !== JSON.stringify(fixedPositionPreview.board) ||
+    sequentialPreview.rack !== fixedPositionPreview.rack
+  );
+});
+assert(
+  alternateMove,
+  'The fixed-position fixture must expose an alternative that differs from sequential play.',
+);
+
+const alternatePreview = applyMove(alternatePosition, alternateRack, alternateMove);
+assert(
+  alternatePreview.rack === '',
+  'Selecting an alternative must rebuild it from the original rack.',
+);
+assert(
+  JSON.stringify(alternateResults) === resultSnapshot,
+  'Selecting an alternative must not change the result words, scores, order, or count.',
+);
+assert(
+  JSON.stringify(alternatePreview.board) !== JSON.stringify(bestPreview.board),
+  'Selecting a different alternative must replace the previous board preview.',
+);
+
 console.log('Solver regression checks passed.');
