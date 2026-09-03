@@ -30,8 +30,8 @@ const STORAGE_KEY = '@crosslex/position';
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
   const tiles = [
-    { letter: 'W', score: 5, backgroundColor: colors.primary, foregroundColor: colors.primaryForeground },
-    { letter: 'H', score: 4, backgroundColor: colors.accent, foregroundColor: colors.accentForeground },
+    { letter: 'W', score: 5 },
+    { letter: 'H', score: 4 },
   ];
 
   return (
@@ -39,12 +39,12 @@ function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
       {tiles.map((tile) => (
         <View
           key={tile.letter}
-          style={[styles.logoTile, { backgroundColor: tile.backgroundColor }]}
+          style={[styles.logoTile, { backgroundColor: colors.tile }]}
         >
-          <Text style={[styles.logoTileLetter, { color: tile.foregroundColor }]}>
+          <Text style={[styles.logoTileLetter, { color: colors.tileForeground }]}>
             {tile.letter}
           </Text>
-          <Text style={[styles.logoTileScore, { color: tile.foregroundColor }]}>
+          <Text style={[styles.logoTileScore, { color: colors.tileForeground }]}>
             {tile.score}
           </Text>
         </View>
@@ -68,7 +68,7 @@ function BoardPreview({
   colors: ReturnType<typeof useColors>;
 }) {
   return (
-    <View style={[styles.board, { borderColor: colors.border, backgroundColor: colors.secondary }]}>
+    <View style={[styles.board, { borderColor: colors.boardBorder, backgroundColor: colors.board }]}>
       {board.map((row, rowIndex) => (
         <View key={`row-${rowIndex}`} style={styles.boardRow}>
           {row.map((letter, colIndex) => {
@@ -77,8 +77,18 @@ function BoardPreview({
             const premium =
               rowIndex === 7 && colIndex === 7
                 ? '★'
-                : rowIndex === colIndex || rowIndex + colIndex === 14
-                  ? '2'
+                : rowIndex === colIndex
+                  ? 'DW'
+                  : rowIndex + colIndex === 14
+                    ? 'DL'
+                    : '';
+            const premiumBackground =
+              premium === '★'
+                ? colors.accent
+                : premium === 'DW'
+                  ? colors.doubleWord
+                  : premium === 'DL'
+                    ? colors.doubleLetter
                   : '';
             return (
               <Pressable
@@ -89,22 +99,20 @@ function BoardPreview({
                   styles.boardCell,
                   {
                     backgroundColor: letter
-                      ? colors.card
-                      : premium === '★'
-                        ? colors.accent
-                        : colors.muted,
-                    borderColor: colors.border,
+                      ? colors.tile
+                      : premiumBackground || colors.boardCell,
+                    borderColor: colors.boardBorder,
                     opacity: pressed && editing ? 0.7 : 1,
                   },
                   isSelected && { borderColor: colors.primary, borderWidth: 2 },
                 ]}
               >
                 {letter ? (
-                  <Text style={[styles.boardLetter, { color: colors.foreground }]}>
+                    <Text style={[styles.boardLetter, { color: colors.tileForeground }]}>
                     {letter}
                   </Text>
                 ) : (
-                  <Text style={[styles.premiumText, { color: colors.mutedForeground }]}>
+                    <Text style={[styles.premiumText, { color: colors.premiumForeground }]}>
                     {premium}
                   </Text>
                 )}
@@ -387,7 +395,7 @@ export default function HomeScreen() {
             maxLength={7}
             style={[styles.rackInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
           />
-          <Text style={[styles.rackHint, { color: '#b7c3c1' }]}>Use ? for a blank tile.</Text>
+              <Text style={[styles.rackHint, { color: colors.mutedForeground }]}>Use ? for a blank tile.</Text>
         </View>
 
         <Pressable
@@ -480,14 +488,14 @@ const styles = StyleSheet.create({
   boardRow: { flex: 1, flexDirection: 'row' },
   boardCell: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   boardLetter: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  premiumText: { fontSize: 7, fontFamily: 'Inter_600SemiBold' },
+  premiumText: { fontSize: 6.5, fontFamily: 'Inter_700Bold' },
   editorRow: { marginTop: 12, borderRadius: 13, padding: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   editorCopy: { flex: 1, paddingRight: 10 },
   editorLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   editorHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3 },
   cellInput: { width: 37, height: 37, borderRadius: 9, borderWidth: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Inter_700Bold' },
   screenshotRow: { borderTopWidth: 1, marginTop: 14, paddingTop: 14, flexDirection: 'row', alignItems: 'center' },
-  screenshotThumb: { width: 39, height: 54, borderRadius: 7, backgroundColor: '#e5edef' },
+  screenshotThumb: { width: 39, height: 54, borderRadius: 7 },
   screenshotCopy: { flex: 1, marginHorizontal: 10 },
   screenshotTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   screenshotHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3, lineHeight: 14 },

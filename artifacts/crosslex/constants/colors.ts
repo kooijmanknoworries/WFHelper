@@ -15,40 +15,50 @@
 const colors = {
   light: {
     // Legacy aliases (kept for backward compatibility)
-    text: '#172227',
-    tint: '#ef6a5b',
+    text: '#f7f9fc',
+    tint: '#155DFC',
 
     // Core surfaces
-    background: '#f6f4ef',
-    foreground: '#172227',
+    background: '#111a2e',
+    foreground: '#f7f9fc',
 
     // Cards / elevated surfaces
-    card: '#fffdf8',
-    cardForeground: '#172227',
+    card: '#1e2938',
+    cardForeground: '#f7f9fc',
 
     // Primary action color (buttons, links, active states)
-    primary: '#ef6a5b',
-    primaryForeground: '#fffdf8',
+    primary: '#155DFC',
+    primaryForeground: '#ffffff',
 
     // Secondary / less-emphasis interactive surfaces
-    secondary: '#e5edef',
-    secondaryForeground: '#294047',
+    secondary: '#293648',
+    secondaryForeground: '#f7f9fc',
 
     // Muted / subdued elements (dividers, timestamps, placeholders)
-    muted: '#edf1ed',
-    mutedForeground: '#63757a',
+    muted: '#253244',
+    mutedForeground: '#aeb9c8',
 
     // Accent highlights (badges, selected items, focus rings)
-    accent: '#f4d58f',
-    accentForeground: '#694f18',
+    accent: '#f28c28',
+    accentForeground: '#111a2e',
 
     // Destructive actions (delete, error states)
-    destructive: '#c84f49',
-    destructiveForeground: '#fffdf8',
+    destructive: '#d75a5a',
+    destructiveForeground: '#ffffff',
 
     // Borders and input outlines
-    border: '#d9e1df',
-    input: '#d9e1df',
+    border: '#3a4759',
+    input: '#3a4759',
+
+    // Wordfeud-inspired tile and board colors
+    tile: '#f4f2ed',
+    tileForeground: '#17202d',
+    board: '#182332',
+    boardCell: '#2b3746',
+    boardBorder: '#465465',
+    doubleLetter: '#2188d3',
+    doubleWord: '#d5565f',
+    premiumForeground: '#ffffff',
   },
 
   // Border radius (in px). Sync from the sibling web artifact's --radius
