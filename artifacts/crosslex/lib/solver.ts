@@ -44,7 +44,7 @@ const LETTER_VALUES: Record<string, number> = {
   '?': 0,
 };
 
-export type PremiumLabel = 'TL' | 'DL' | 'TW' | 'DW' | '★';
+export type PremiumLabel = '3L' | '2L' | '3W' | '2W' | '★';
 
 type Premium = {
   label: PremiumLabel;
@@ -53,30 +53,30 @@ type Premium = {
 };
 
 const PREMIUM_COORDINATES: Record<Exclude<PremiumLabel, '★'>, string[]> = {
-  TW: [
-    '0:0', '0:4', '0:10', '0:14',
+  '3W': [
+    '0:4', '0:10',
     '4:0', '4:14',
     '10:0', '10:14',
-    '14:0', '14:4', '14:10', '14:14',
+    '14:4', '14:10',
   ],
-  DW: [
+  '2W': [
     '2:2', '2:12',
-    '3:7',
     '4:4', '4:10',
     '7:3', '7:11',
     '10:4', '10:10',
-    '11:7',
     '12:2', '12:12',
   ],
-  TL: [
+  '3L': [
+    '0:0', '0:14',
     '1:5', '1:9',
     '3:3', '3:11',
     '5:1', '5:5', '5:9', '5:13',
     '9:1', '9:5', '9:9', '9:13',
     '11:3', '11:11',
     '13:5', '13:9',
+    '14:0', '14:14',
   ],
-  DL: [
+  '2L': [
     '0:7',
     '1:1', '1:13',
     '2:6', '2:8',
@@ -92,10 +92,10 @@ const PREMIUM_COORDINATES: Record<Exclude<PremiumLabel, '★'>, string[]> = {
 };
 
 const PREMIUM_VALUES: Record<Exclude<PremiumLabel, '★'>, Premium> = {
-  TW: { label: 'TW', wordMultiplier: 3 },
-  DW: { label: 'DW', wordMultiplier: 2 },
-  TL: { label: 'TL', letterMultiplier: 3 },
-  DL: { label: 'DL', letterMultiplier: 2 },
+  '3W': { label: '3W', wordMultiplier: 3 },
+  '2W': { label: '2W', wordMultiplier: 2 },
+  '3L': { label: '3L', letterMultiplier: 3 },
+  '2L': { label: '2L', letterMultiplier: 2 },
 };
 
 const PREMIUMS: Record<string, Premium> = {

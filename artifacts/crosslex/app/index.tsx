@@ -203,13 +203,13 @@ function BoardPreview({
             const premiumBackground =
               premium === '★'
                 ? colors.center
-                : premium === 'TW'
+                : premium === '3W'
                   ? colors.tripleWord
-                  : premium === 'DW'
+                  : premium === '2W'
                     ? colors.doubleWord
-                    : premium === 'TL'
+                    : premium === '3L'
                       ? colors.tripleLetter
-                      : premium === 'DL'
+                      : premium === '2L'
                         ? colors.doubleLetter
                         : '';
             return (
