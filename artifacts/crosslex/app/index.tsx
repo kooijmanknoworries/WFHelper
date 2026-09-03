@@ -713,7 +713,7 @@ export default function HomeScreen() {
         </Pressable>
 
         <View style={[styles.resultsHeader, { borderBottomColor: colors.border }]}>
-          <View>
+          <View style={styles.resultsTitleColumn}>
             <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>{t('results')}</Text>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {results.length > 0 ? t('bestLegalMoves') : t('readyWhenYouAre')}
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   soonText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 },
   sectionKicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5 },
-  sectionTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.6, marginTop: 4 },
+  sectionTitle: { fontSize: 22, lineHeight: 27, fontFamily: 'Inter_700Bold', letterSpacing: -0.6, marginTop: 4, flexShrink: 1 },
   textButton: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingBottom: 2 },
   textButtonLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   scanButton: { minHeight: 66, borderRadius: 16, marginBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -833,7 +833,8 @@ const styles = StyleSheet.create({
   rackHint: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 9 },
   solveButton: { minHeight: 56, borderRadius: 16, marginTop: 12, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 10 },
   solveButtonText: { flex: 1, fontSize: 14, fontFamily: 'Inter_700Bold' },
-  resultsHeader: { paddingTop: 34, paddingBottom: 13, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderBottomWidth: 1 },
+  resultsHeader: { paddingTop: 34, paddingBottom: 13, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', borderBottomWidth: 1 },
+  resultsTitleColumn: { flex: 1, minWidth: 0, paddingRight: 12 },
   placedBanner: { borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   placedBannerText: { flex: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   resultCount: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
