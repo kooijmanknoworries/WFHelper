@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { DUTCH_SITE_WORDS } from '../data/dutch-site-wordlist.ts';
 
 const openTaalRepo = 'OpenTaal/opentaal-wordlist';
-const targetedWords = ['AZE', 'ES', 'ZES'];
-const wordPattern = /^[A-Za-z]{2,15}$/;
+const targetedAcceptedWords = ['AZE', 'CES', 'ES', 'ZES'];
+const targetedRejectedWords = ['CM', 'CMS', 'CRM', 'CV', 'MXV', 'VJ', 'VSV'];
+const targetedWords = [...targetedAcceptedWords, ...targetedRejectedWords];
+const lowercaseWordPattern = /^[a-z]{2,15}$/;
 
 function stripHtml(value) {
   return value
@@ -74,18 +77,36 @@ for (const word of targetedWords) {
   verification.push({ word, taaltikAllowed, officialSpelling });
 }
 
+const trustedShortWords = new Set(
+  DUTCH_SITE_WORDS.filter((word) => word.length <= 3),
+);
 const words = new Set(
   openTaalText
     .split(/\r?\n/)
     .map((word) => word.trim())
-    .filter((word) => wordPattern.test(word))
-    .map((word) => word.toUpperCase()),
+    // Capitalized entries include proper names, abbreviations, and Roman
+    // numerals. Wordfeud words are ordinary lowercase dictionary entries.
+    .filter((word) => lowercaseWordPattern.test(word))
+    .map((word) => word.toUpperCase())
+    // OpenTaal also contains lowercase abbreviations. For the especially
+    // ambiguous 2- and 3-letter range, require the existing Wordfeud-specific
+    // source or an explicit dual-verified addition below.
+    .filter((word) => word.length >= 4 || trustedShortWords.has(word)),
 );
 for (const item of verification) {
-  if (!item.taaltikAllowed || !item.officialSpelling) {
+  if (
+    targetedAcceptedWords.includes(item.word) &&
+    (!item.taaltikAllowed || !item.officialSpelling)
+  ) {
     throw new Error(`${item.word} did not pass both targeted verification sources.`);
   }
-  words.add(item.word);
+  if (targetedAcceptedWords.includes(item.word)) words.add(item.word);
+  if (targetedRejectedWords.includes(item.word)) {
+    if (item.taaltikAllowed) {
+      throw new Error(`${item.word} is now accepted by TaalTik and requires review.`);
+    }
+    words.delete(item.word);
+  }
 }
 const sortedWords = [...words].sort();
 const wordsText = sortedWords.join('\n');
@@ -110,7 +131,7 @@ export const DUTCH_OPEN_DICTIONARY_META = ${JSON.stringify({
     openTaalCommit,
     openTaalLicense: 'Revised BSD License / CC BY 3.0',
     attribution:
-      'Dutch word list by Stichting OpenTaal, modified by filtering to A-Z words of 2–15 letters and adding dual-verified Wordfeud words.',
+      'Dutch word list by Stichting OpenTaal, modified by filtering to lowercase A-Z words of 2–15 letters, restricting short forms to a Wordfeud-specific source, and applying targeted TaalTik verdicts.',
     licenseUrl: 'https://github.com/OpenTaal/opentaal-wordlist/blob/master/LICENSE.txt',
     retrievedAt,
     minLength: 2,

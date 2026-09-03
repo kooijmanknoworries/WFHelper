@@ -27,6 +27,7 @@ import {
   BOARD_SIZE,
   applyMove,
   Board,
+  checkDutchDictionaryForUpdates,
   createEmptyBoard,
   createSampleBoard,
   findBestMoves,
@@ -423,6 +424,7 @@ export default function HomeScreen() {
         detectedRackTiles: scannedRack.length,
         warnings: scan.warnings,
       });
+      await checkDutchDictionaryForUpdates();
       const scannedResults =
         scannedRack.length >= 2 ? findBestMoves(scannedBoard, scannedRack) : [];
       const preview = beginSuggestionSession(scannedBoard, scannedRack, scannedResults);
@@ -445,6 +447,7 @@ export default function HomeScreen() {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await new Promise((resolve) => setTimeout(resolve, 180));
+      await checkDutchDictionaryForUpdates();
       const sourceBoard = suggestionSession?.board ?? board;
       const sourceRack = suggestionSession?.rack ?? rack;
       const nextResults = findBestMoves(sourceBoard, sourceRack);

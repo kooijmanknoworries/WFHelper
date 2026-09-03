@@ -113,7 +113,10 @@ assert(
 );
 
 const openDutchWords = DUTCH_OPEN_WORDS_TEXT.split('\n');
-assert(openDutchWords.length > 300_000, 'The licensed OpenTaal pack must contain its full filtered base.');
+assert(
+  openDutchWords.length > 290_000,
+  'The licensed OpenTaal pack must contain its full filtered base.',
+);
 for (const word of ['AZE', 'ES', 'ZES']) {
   assert(openDutchWords.includes(word), `The downloadable dictionary is missing ${word}.`);
 }
@@ -227,6 +230,33 @@ assert(
 assert(
   zesMove.score === 38,
   `ZES must score 38 with Dutch Wordfeud tile values, received ${zesMove.score}.`,
+);
+
+const openZesMoves = findBestMoves(zesReferenceBoard, 'JXVMCZS', openDutchWords, 20);
+for (const rejectedWord of ['CM', 'CMS', 'CRM', 'CV', 'MXV', 'VJ', 'VSV']) {
+  assert(
+    !openDutchWords.includes(rejectedWord),
+    `The downloadable dictionary must exclude TaalTik-rejected ${rejectedWord}.`,
+  );
+  assert(
+    !openZesMoves.some((move) => move.word === rejectedWord),
+    `The ZES fixture must not suggest TaalTik-rejected ${rejectedWord}.`,
+  );
+}
+assert(
+  openZesMoves[0]?.score === 38,
+  `The best downloadable-pack move in the ZES fixture must score 38, received ${openZesMoves[0]?.score}.`,
+);
+assert(
+  openZesMoves.some(
+    (move) =>
+      move.word === 'ZES' &&
+      move.score === 38 &&
+      move.row === 11 &&
+      move.col === 11 &&
+      move.direction === 'V',
+  ),
+  'The downloadable pack must retain the reconstructed 38-point ZES move.',
 );
 
 function assertBoardCell(board: Board, row: number, col: number, expected: string) {
