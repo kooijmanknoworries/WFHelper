@@ -33,13 +33,14 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 ## Architecture decisions
 
 - The first build is frontend-only and keeps the current position in AsyncStorage.
-- Screenshot selection uses the native photo library; the user verifies or corrects recognized board tiles in the editor.
+- Screenshot selection uses the native photo library and server-side vision recognition; the user verifies or corrects detected tiles in the editor.
 - The solver is dictionary-independent so complete licensed language packs can replace the embedded Dutch starter list.
 - Candidate moves are rejected when any perpendicular crossing word is absent from the active dictionary.
 
 ## Product
 
-- Import a board screenshot from the device photo library.
+- Import and scan a board screenshot from the device photo library.
+- Automatically recognize the 15×15 board and rack, show confidence feedback, and calculate legal move advice.
 - Start from a blank board with the real 15×15 Wordfeud premium-square layout.
 - Edit any square and enter the seven rack tiles, including blanks.
 - Generate and rank legal horizontal and vertical moves by score.
@@ -54,6 +55,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 - Keep React Native and React Native Worklets aligned with the installed Expo SDK; run Expo dependency checks after upgrades.
 - The embedded Dutch list is a prototype dictionary, not yet a complete production Wordfeud language pack.
+- Screenshot recognition uses Replit AI Integrations for OpenAI on the API server; never expose its credentials in the mobile client.
 
 ## Pointers
 

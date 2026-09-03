@@ -12,8 +12,9 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 
 - Expo 57 / React Native 0.86 mobile app.
 - Dutch-first offline prototype.
-- Screenshot import from the device photo library is implemented.
-- Imported screenshots currently require manual board verification/editing; automatic OCR is not implemented yet.
+- Screenshot import from the device photo library is implemented as the primary input flow.
+- Imported screenshots are sent to the server-side managed OpenAI vision integration, which returns a 15×15 board, rack, confidence score, and warnings.
+- Recognized positions automatically populate the editor and run the move solver; users can correct uncertain tiles manually.
 - Editable 15×15 board with rack input for up to seven tiles.
 - The default position is a blank 15×15 Wordfeud board using the real TL, DL, TW, DW, and center-star layout.
 - `?` is supported as a blank tile and scores zero.
@@ -44,7 +45,7 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 ## Next milestones
 
 1. Replace the starter Dutch list with a complete, legally sourced dictionary pack and add unit coverage for Wordfeud board rules.
-2. Add screenshot board recognition with confidence indicators and a correction flow.
+2. Improve screenshot recognition across more devices, crops, themes, and Wordfeud versions.
 3. Add more Wordfeud languages through downloadable dictionary packs.
 4. Add optional accounts and paid features only after the core solver is reliable.
 

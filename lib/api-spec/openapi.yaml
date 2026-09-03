@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: scanner
+    description: Wordfeud screenshot recognition
 paths:
   /healthz:
     get:
@@ -24,6 +26,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /scan-board:
+    post:
+      operationId: scanWordfeudBoard
+      tags: [scanner]
+      summary: Recognize a Wordfeud board and rack from a screenshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanBoardInput"
+      responses:
+        "200":
+          description: Recognized board position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanBoardResult"
+        "400":
+          description: Invalid screenshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Screenshot recognition failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +65,51 @@ components:
           type: string
       required:
         - status
+    ScanBoardInput:
+      type: object
+      properties:
+        imageBase64:
+          type: string
+          description: Base64-encoded PNG, JPEG, or WebP screenshot
+        mimeType:
+          type: string
+          enum: [image/png, image/jpeg, image/webp]
+      required:
+        - imageBase64
+        - mimeType
+    ScanBoardResult:
+      type: object
+      properties:
+        board:
+          type: array
+          minItems: 15
+          maxItems: 15
+          items:
+            type: array
+            minItems: 15
+            maxItems: 15
+            items:
+              type: string
+        rack:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+        - board
+        - rack
+        - confidence
+        - warnings
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

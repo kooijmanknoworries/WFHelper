@@ -16,6 +16,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  scanWordfeudBoard,
+  ScanBoardInputMimeType,
+  type ScanBoardInputMimeType as ScanBoardMimeType,
+} from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import {
   BOARD_SIZE,
@@ -28,6 +33,19 @@ import {
 } from '@/lib/solver';
 
 const STORAGE_KEY = '@crosslex/position';
+
+type ScanInfo = {
+  confidence: number;
+  detectedBoardTiles: number;
+  detectedRackTiles: number;
+  warnings: string[];
+};
+
+function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
+  if (value === ScanBoardInputMimeType['image/png']) return value;
+  if (value === ScanBoardInputMimeType['image/webp']) return value;
+  return ScanBoardInputMimeType['image/jpeg'];
+}
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
   const tiles = [
@@ -175,6 +193,8 @@ export default function HomeScreen() {
   const [isSolving, setIsSolving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
+  const [scanInfo, setScanInfo] = useState<ScanInfo | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -201,19 +221,62 @@ export default function HomeScreen() {
 
   const handleImport = async () => {
     setIsImporting(true);
+    setScanError(null);
+    setScanInfo(null);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) return;
+      if (!permission.granted) {
+        setScanError('Photo access is needed to select a Wordfeud screenshot.');
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.9,
+        base64: true,
       });
-      if (!result.canceled) {
-        setScreenshotUri(result.assets[0]?.uri ?? null);
-        setEditingBoard(true);
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.base64) {
+        throw new Error('The selected screenshot could not be prepared for scanning.');
       }
+
+      setScreenshotUri(asset.uri);
+      const scan = await scanWordfeudBoard({
+        imageBase64: asset.base64,
+        mimeType: getScanMimeType(asset.mimeType),
+      });
+      const scannedBoard = scan.board as Board;
+      const scannedRack = scan.rack;
+      const detectedBoardTiles = scannedBoard.reduce(
+        (total, row) => total + row.filter(Boolean).length,
+        0,
+      );
+
+      setBoard(scannedBoard);
+      setRack(scannedRack);
+      setScanInfo({
+        confidence: scan.confidence,
+        detectedBoardTiles,
+        detectedRackTiles: scannedRack.length,
+        warnings: scan.warnings,
+      });
+      setEditingBoard(true);
+      setSelectedCell(null);
+      setResults(scannedRack.length >= 2 ? findBestMoves(scannedBoard, scannedRack) : []);
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ board: scannedBoard, rack: scannedRack }),
+      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      setScanError(
+        error instanceof Error
+          ? error.message
+          : 'The screenshot could not be scanned. Please try again.',
+      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsImporting(false);
     }
@@ -233,6 +296,8 @@ export default function HomeScreen() {
     setBoard(createSampleBoard());
     setRack('AARTE?');
     setScreenshotUri(null);
+    setScanInfo(null);
+    setScanError(null);
     setResults([]);
     setEditingBoard(false);
     setSelectedCell(null);
@@ -266,7 +331,7 @@ export default function HomeScreen() {
           <Text style={[styles.eyebrow, { color: colors.primary }]}>DUTCH WORD ENGINE · BETA</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>Play the best{'\n'}move.</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Read every crossing word before you place a tile.
+            Import a Wordfeud screenshot to read the board, rack, and every crossing word.
           </Text>
         </View>
 
@@ -296,6 +361,43 @@ export default function HomeScreen() {
             <Text style={[styles.textButtonLabel, { color: colors.primary }]}>demo position</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          testID="import-screenshot-button"
+          onPress={handleImport}
+          disabled={isImporting}
+          style={({ pressed }) => [
+            styles.scanButton,
+            {
+              backgroundColor: colors.primary,
+              opacity: pressed || isImporting ? 0.7 : 1,
+            },
+          ]}
+        >
+          {isImporting ? (
+            <ActivityIndicator color={colors.primaryForeground} size="small" />
+          ) : (
+            <Ionicons name="scan-outline" size={20} color={colors.primaryForeground} />
+          )}
+          <View style={styles.scanButtonCopy}>
+            <Text style={[styles.scanButtonTitle, { color: colors.primaryForeground }]}>
+              {isImporting ? 'Reading board and rack…' : 'Scan Wordfeud screenshot'}
+            </Text>
+            <Text style={[styles.scanButtonHint, { color: colors.primaryForeground }]}>
+              Import a screenshot and get move advice
+            </Text>
+          </View>
+          {!isImporting && (
+            <Ionicons name="image-outline" size={18} color={colors.primaryForeground} />
+          )}
+        </Pressable>
+
+        {scanError && (
+          <View style={[styles.scanError, { backgroundColor: colors.muted, borderColor: colors.destructive }]}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.destructive} />
+            <Text style={[styles.scanErrorText, { color: colors.foreground }]}>{scanError}</Text>
+          </View>
+        )}
 
         <View style={[styles.boardCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.boardCardTop}>
@@ -351,26 +453,26 @@ export default function HomeScreen() {
             <View style={[styles.screenshotRow, { borderTopColor: colors.border }]}>
               <Image source={{ uri: screenshotUri }} style={styles.screenshotThumb} />
               <View style={styles.screenshotCopy}>
-                <Text style={[styles.screenshotTitle, { color: colors.foreground }]}>Screenshot imported</Text>
-                <Text style={[styles.screenshotHint, { color: colors.mutedForeground }]}>Check the board above and correct any tiles.</Text>
+                <Text style={[styles.screenshotTitle, { color: colors.foreground }]}>
+                  {scanInfo
+                    ? `Scan complete · ${Math.round(scanInfo.confidence * 100)}% confidence`
+                    : 'Screenshot selected'}
+                </Text>
+                <Text style={[styles.screenshotHint, { color: colors.mutedForeground }]}>
+                  {scanInfo
+                    ? scanInfo.warnings[0] ??
+                      `${scanInfo.detectedBoardTiles} board tiles and ${scanInfo.detectedRackTiles} rack tiles recognized. Check and correct any errors.`
+                    : 'The screenshot is ready to scan.'}
+                </Text>
               </View>
-              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              <Ionicons
+                name={scanInfo ? 'checkmark-circle' : 'image-outline'}
+                size={20}
+                color={scanInfo ? colors.primary : colors.mutedForeground}
+              />
             </View>
           )}
         </View>
-
-        <Pressable
-          testID="import-screenshot-button"
-          onPress={handleImport}
-          disabled={isImporting}
-          style={({ pressed }) => [styles.importButton, { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed || isImporting ? 0.65 : 1 }]}
-        >
-          {isImporting ? <ActivityIndicator color={colors.primary} size="small" /> : <Ionicons name="image-outline" size={18} color={colors.primary} />}
-          <Text style={[styles.importButtonText, { color: colors.foreground }]}>
-            {isImporting ? 'Opening photos…' : 'Import a board screenshot'}
-          </Text>
-          <Ionicons name="arrow-forward" size={17} color={colors.mutedForeground} />
-        </Pressable>
 
         <View style={[styles.rackCard, { backgroundColor: colors.foreground }]}>
           <View style={styles.rackHeader}>
@@ -476,6 +578,12 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', letterSpacing: -0.6, marginTop: 4 },
   textButton: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingBottom: 2 },
   textButtonLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  scanButton: { minHeight: 66, borderRadius: 16, marginBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  scanButtonCopy: { flex: 1 },
+  scanButtonTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  scanButtonHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3, opacity: 0.82 },
+  scanError: { borderRadius: 13, borderWidth: 1, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  scanErrorText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
   boardCard: { borderRadius: 22, borderWidth: 1, padding: 14 },
   boardCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   boardStatus: { flexDirection: 'row', alignItems: 'center', gap: 7 },
@@ -497,8 +605,6 @@ const styles = StyleSheet.create({
   screenshotCopy: { flex: 1, marginHorizontal: 10 },
   screenshotTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   screenshotHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3, lineHeight: 14 },
-  importButton: { minHeight: 52, borderRadius: 15, borderWidth: 1, marginTop: 12, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  importButtonText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   rackCard: { borderRadius: 22, padding: 17, marginTop: 26 },
   rackHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   rackKicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.6 },

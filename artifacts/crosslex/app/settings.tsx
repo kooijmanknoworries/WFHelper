@@ -56,7 +56,7 @@ export default function SettingsScreen() {
       <View style={[styles.infoBox, { backgroundColor: colors.muted }]}>
         <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
         <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-          Wordfeud Helper is designed around the words that touch. A future release will add full dictionary packs and camera-assisted recognition.
+          Wordfeud Helper scans screenshots to recognize the board and rack, then validates every word created by the suggested move.
         </Text>
       </View>
     </ScrollView>
