@@ -267,12 +267,18 @@ function MoveRow({
             </Text>
           </View>
         </View>
+        <Text style={[styles.moveMeta, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>
+          {t(
+            'placementMeta',
+            move.direction === 'H' ? t('horizontal') : t('vertical'),
+            move.row + 1,
+            move.col + 1,
+            move.tilesUsed,
+            move.tilesUsed === 1 ? t('newTile') : t('newTiles'),
+          )}
+        </Text>
         {selected && (
           <>
-            <Text style={[styles.moveMeta, { color: colors.primaryForeground }]}>
-              {move.direction === 'H' ? t('horizontal') : t('vertical')} · {t('row')} {move.row + 1}, {t('column')} {move.col + 1} · {move.tilesUsed}{' '}
-              {move.tilesUsed === 1 ? t('newTile') : t('newTiles')}
-            </Text>
             <Text style={[styles.crossSummary, { color: colors.primaryForeground }]}>
               {move.crossWords.length > 0
                 ? t('validCrossings', move.crossWords.join(', '))

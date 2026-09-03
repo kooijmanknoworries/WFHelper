@@ -64,6 +64,8 @@ const translations = {
     readyWhenYouAre: 'Klaar wanneer jij dat bent',
     found: (count: number) => `${count} gevonden`,
     movePlaced: (word: string) => `Zet ${word} geplaatst.`,
+    placementMeta: (direction: string, row: number, column: number, tiles: number, unit: string) =>
+      `${direction} · rij ${row}, kolom ${column} · ${tiles} ${unit}`,
     horizontal: 'Horizontaal',
     vertical: 'Verticaal',
     row: 'rij',
@@ -137,6 +139,8 @@ const translations = {
     readyWhenYouAre: 'Ready when you are',
     found: (count: number) => `${count} found`,
     movePlaced: (word: string) => `Move ${word} placed.`,
+    placementMeta: (direction: string, row: number, column: number, tiles: number, unit: string) =>
+      `${direction} · row ${row}, col ${column} · ${tiles} ${unit}`,
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     row: 'row',
@@ -161,6 +165,7 @@ export type Translator = {
   (key: 'recognizedSummary', boardTiles: number, rackTiles: number): string;
   (key: 'found', count: number): string;
   (key: 'movePlaced', word: string): string;
+  (key: 'placementMeta', direction: string, row: number, column: number, tiles: number, unit: string): string;
   (key: 'validCrossings', words: string): string;
   (key: 'scanLimitWithTime', minutes: number, unit: string): string;
 };
