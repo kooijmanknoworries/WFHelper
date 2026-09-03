@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  checkWordfeudWord,
   scanWordfeudBoard,
   ScanBoardInputMimeType,
   type ScanBoardInputMimeType as ScanBoardMimeType,
@@ -47,6 +48,17 @@ type ScanInfo = {
   detectedBoardTiles: number;
   detectedRackTiles: number;
   warnings: string[];
+};
+
+type TaalTikWordVerdict = {
+  word: string;
+  status: 'allowed' | 'rejected' | 'error';
+};
+
+type TaalTikCheckState = {
+  moveKey: string;
+  checking: boolean;
+  verdicts: TaalTikWordVerdict[];
 };
 
 type SuggestionSession = {
@@ -240,6 +252,8 @@ function MoveRow({
   t,
   selected,
   onPress,
+  taalTikCheck,
+  onCheckMove,
 }: {
   move: Move;
   rank: number;
@@ -247,7 +261,13 @@ function MoveRow({
   t: Translator;
   selected: boolean;
   onPress: () => void;
+  taalTikCheck: TaalTikCheckState | null;
+  onCheckMove: () => void;
 }) {
+  const moveKey = `${move.word}-${move.row}-${move.col}-${move.direction}`;
+  const currentCheck = taalTikCheck?.moveKey === moveKey ? taalTikCheck : null;
+  const isChecking = currentCheck?.checking === true;
+
   return (
     <Pressable
       onPress={onPress}
@@ -294,6 +314,78 @@ function MoveRow({
                 ? t('validCrossings', move.crossWords.join(', '))
                 : t('noCrossings')}
             </Text>
+            <Pressable
+              testID={`check-taaltik-${move.word}`}
+              onPress={(event) => {
+                event.stopPropagation();
+                onCheckMove();
+              }}
+              disabled={isChecking}
+              style={({ pressed }) => [
+                styles.taalTikAction,
+                {
+                  borderColor: colors.primaryForeground,
+                  opacity: pressed || isChecking ? 0.72 : 1,
+                },
+              ]}
+            >
+              {isChecking ? (
+                <ActivityIndicator size="small" color={colors.primaryForeground} />
+              ) : (
+                <Ionicons name="search-outline" size={14} color={colors.primaryForeground} />
+              )}
+              <Text style={[styles.taalTikActionText, { color: colors.primaryForeground }]}>
+                {isChecking ? t('checkingTaalTik') : t('checkWithTaalTik')}
+              </Text>
+            </Pressable>
+            {currentCheck?.verdicts.map((verdict) => (
+              <View
+                key={verdict.word}
+                style={[
+                  styles.taalTikStatus,
+                  {
+                    backgroundColor:
+                      verdict.status === 'allowed' ? colors.secondary : colors.destructive,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    verdict.status === 'allowed'
+                      ? 'checkmark-circle'
+                      : verdict.status === 'rejected'
+                        ? 'close-circle'
+                        : 'alert-circle'
+                  }
+                  size={14}
+                  color={
+                    verdict.status === 'allowed' ? colors.primary : colors.destructiveForeground
+                  }
+                />
+                <Text
+                  style={[
+                    styles.taalTikStatusText,
+                    {
+                      color:
+                        verdict.status === 'allowed'
+                          ? colors.foreground
+                          : colors.destructiveForeground,
+                    },
+                  ]}
+                >
+                  {verdict.status === 'allowed'
+                    ? t('taalTikAllowed', verdict.word)
+                    : verdict.status === 'rejected'
+                      ? t('taalTikRejected', verdict.word)
+                      : `${verdict.word}: ${t('taalTikCheckError')}`}
+                </Text>
+              </View>
+            ))}
+            {currentCheck && !currentCheck.checking && currentCheck.verdicts.length > 0 && (
+              <Text style={[styles.taalTikSource, { color: colors.primaryForeground }]}>
+                {t('taalTikSource')}
+              </Text>
+            )}
           </>
         )}
       </View>
@@ -324,6 +416,8 @@ export default function HomeScreen() {
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
   const [scanInfo, setScanInfo] = useState<ScanInfo | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [taalTikCheck, setTaalTikCheck] = useState<TaalTikCheckState | null>(null);
+  const taalTikRequestRef = useRef(0);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -465,6 +559,8 @@ export default function HomeScreen() {
   };
 
   const handleApplyMove = async (move: Move) => {
+    taalTikRequestRef.current += 1;
+    setTaalTikCheck(null);
     setScanError(null);
     try {
       const sourceBoard = suggestionSession?.board ?? board;
@@ -483,6 +579,34 @@ export default function HomeScreen() {
       setScanError(t('solverError'));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
+  };
+
+  const handleCheckMove = async (move: Move) => {
+    const requestId = taalTikRequestRef.current + 1;
+    taalTikRequestRef.current = requestId;
+    const moveKey = `${move.word}-${move.row}-${move.col}-${move.direction}`;
+    const words = [...new Set([move.word, ...move.crossWords])];
+    setTaalTikCheck({ moveKey, checking: true, verdicts: [] });
+
+    const verdicts = await Promise.all(
+      words.map(async (word): Promise<TaalTikWordVerdict> => {
+        try {
+          const result = await checkWordfeudWord({ word });
+          return { word, status: result.allowed ? 'allowed' : 'rejected' };
+        } catch {
+          return { word, status: 'error' };
+        }
+      }),
+    );
+    if (requestId !== taalTikRequestRef.current) return;
+
+    setTaalTikCheck({ moveKey, checking: false, verdicts });
+    const feedbackType = verdicts.some((verdict) => verdict.status === 'error')
+      ? Haptics.NotificationFeedbackType.Error
+      : verdicts.some((verdict) => verdict.status === 'rejected')
+        ? Haptics.NotificationFeedbackType.Warning
+        : Haptics.NotificationFeedbackType.Success;
+    await Haptics.notificationAsync(feedbackType);
   };
 
   const loadDemo = () => {
@@ -749,6 +873,8 @@ export default function HomeScreen() {
                 t={t}
                 selected={selectedMove === move}
                 onPress={() => void handleApplyMove(move)}
+                taalTikCheck={taalTikCheck}
+                onCheckMove={() => void handleCheckMove(move)}
               />
             ))}
           </View>
@@ -855,6 +981,11 @@ const styles = StyleSheet.create({
   movePoints: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   moveMeta: { fontSize: 9, fontFamily: 'Inter_500Medium', marginTop: 3, opacity: 0.85 },
   crossSummary: { fontSize: 9, fontFamily: 'Inter_500Medium', marginTop: 3, opacity: 0.85 },
+  taalTikAction: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  taalTikActionText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  taalTikStatus: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
+  taalTikStatusText: { flex: 1, fontSize: 10, lineHeight: 14, fontFamily: 'Inter_600SemiBold' },
+  taalTikSource: { fontSize: 9, fontFamily: 'Inter_400Regular', marginTop: 5, opacity: 0.75 },
   emptyResults: { borderRadius: 18, borderWidth: 1, padding: 22, marginTop: 12, alignItems: 'center' },
   emptyIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter_700Bold' },

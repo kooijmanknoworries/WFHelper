@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: scanner
     description: Wordfeud screenshot recognition
+  - name: dictionary
+    description: Wordfeud dictionary verification
 paths:
   /healthz:
     get:
@@ -81,6 +83,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /check-word:
+    post:
+      operationId: checkWordfeudWord
+      tags: [dictionary]
+      summary: Check a word against the current TaalTik Wordfeud list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckWordInput"
+      responses:
+        "200":
+          description: TaalTik Wordfeud verdict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckWordResult"
+        "400":
+          description: Invalid word
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: TaalTik could not be reached or returned no verdict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -130,6 +162,33 @@ components:
         - rack
         - confidence
         - warnings
+    CheckWordInput:
+      type: object
+      properties:
+        word:
+          type: string
+          minLength: 2
+          maxLength: 15
+          pattern: "^[A-Za-z]{2,15}$"
+      required:
+        - word
+    CheckWordResult:
+      type: object
+      properties:
+        word:
+          type: string
+        allowed:
+          type: boolean
+        source:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+      required:
+        - word
+        - allowed
+        - source
+        - checkedAt
     ApiError:
       type: object
       properties:

@@ -41,6 +41,22 @@ export interface ScanBoardResult {
   warnings: string[];
 }
 
+export interface CheckWordInput {
+  /**
+     * @minLength 2
+     * @maxLength 15
+     * @pattern ^[A-Za-z]{2,15}$
+     */
+  word: string;
+}
+
+export interface CheckWordResult {
+  word: string;
+  allowed: boolean;
+  source: string;
+  checkedAt: string;
+}
+
 export interface ApiError {
   error: string;
 }

@@ -49,3 +49,25 @@ export const ScanWordfeudBoardResponse = zod.object({
   "confidence": zod.number().min(scanWordfeudBoardResponseConfidenceMin).max(scanWordfeudBoardResponseConfidenceMax),
   "warnings": zod.array(zod.string())
 })
+
+
+/**
+ * @summary Check a word against the current TaalTik Wordfeud list
+ */
+export const checkWordfeudWordBodyWordMin = 2;
+export const checkWordfeudWordBodyWordMax = 15;
+
+
+export const checkWordfeudWordBodyWordRegExp = new RegExp('^[A-Za-z]{2,15}$');
+
+
+export const CheckWordfeudWordBody = zod.object({
+  "word": zod.string().min(checkWordfeudWordBodyWordMin).max(checkWordfeudWordBodyWordMax).regex(checkWordfeudWordBodyWordRegExp)
+})
+
+export const CheckWordfeudWordResponse = zod.object({
+  "word": zod.string(),
+  "allowed": zod.boolean(),
+  "source": zod.string(),
+  "checkedAt": zod.coerce.date()
+})

@@ -21,6 +21,8 @@ import type {
 
 import type {
   ApiError,
+  CheckWordInput,
+  CheckWordResult,
   HealthStatus,
   RateLimitError,
   ScanBoardInput,
@@ -201,4 +203,75 @@ export const useScanWordfeudBoard = <TError = ErrorType<ApiError | RateLimitErro
         TContext
       > => {
       return useMutation(getScanWordfeudBoardMutationOptions(options));
+    }
+
+export const getCheckWordfeudWordUrl = () => {
+
+
+
+
+  return `/api/check-word`
+}
+
+/**
+ * @summary Check a word against the current TaalTik Wordfeud list
+ */
+export const checkWordfeudWord = async (checkWordInput: CheckWordInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckWordResult> => {
+
+  return customFetch<CheckWordResult>(getCheckWordfeudWordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(checkWordInput)
+  }
+);}
+
+
+
+
+
+export const getCheckWordfeudWordMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkWordfeudWord>>, TError,{data: BodyType<CheckWordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkWordfeudWord>>, TError,{data: BodyType<CheckWordInput>}, TContext> => {
+
+const mutationKey = ['checkWordfeudWord'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkWordfeudWord>>, {data: BodyType<CheckWordInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  checkWordfeudWord(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckWordfeudWordMutationResult = NonNullable<Awaited<ReturnType<typeof checkWordfeudWord>>>
+    export type CheckWordfeudWordMutationBody = BodyType<CheckWordInput>
+    export type CheckWordfeudWordMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Check a word against the current TaalTik Wordfeud list
+ */
+export const useCheckWordfeudWord = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkWordfeudWord>>, TError,{data: BodyType<CheckWordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkWordfeudWord>>,
+        TError,
+        {data: BodyType<CheckWordInput>},
+        TContext
+      > => {
+      return useMutation(getCheckWordfeudWordMutationOptions(options));
     }
