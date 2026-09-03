@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Platform,
   Pressable,
@@ -623,6 +624,35 @@ export default function HomeScreen() {
     setSelectedCell(null);
   };
 
+  const clearScreen = async () => {
+    taalTikRequestRef.current += 1;
+    setBoard(createEmptyBoard());
+    setRack('');
+    setEditingBoard(false);
+    setSelectedCell(null);
+    setResults([]);
+    setSelectedMove(null);
+    setPlacedMove(null);
+    setSuggestionSession(null);
+    setScreenshotUri(null);
+    setScanInfo(null);
+    setScanError(null);
+    setTaalTikCheck(null);
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Clearing the visible screen is still successful if storage is unavailable.
+    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const confirmClearScreen = () => {
+    Alert.alert(t('clearScreenTitle'), t('clearScreenMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('clearScreenConfirm'), style: 'destructive', onPress: () => void clearScreen() },
+    ]);
+  };
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -672,14 +702,27 @@ export default function HomeScreen() {
             <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>{t('position')}</Text>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t('yourBoard')}</Text>
           </View>
-          <Pressable
-            testID="demo-position-button"
-            onPress={loadDemo}
-            style={({ pressed }) => [styles.textButton, { opacity: pressed ? 0.65 : 1 }]}
-          >
-            <Ionicons name="refresh-outline" size={16} color={colors.primary} />
-            <Text style={[styles.textButtonLabel, { color: colors.primary }]}>{t('demoPosition')}</Text>
-          </Pressable>
+          <View style={styles.positionActions}>
+            <Pressable
+              testID="demo-position-button"
+              onPress={loadDemo}
+              style={({ pressed }) => [styles.textButton, { opacity: pressed ? 0.65 : 1 }]}
+            >
+              <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+              <Text style={[styles.textButtonLabel, { color: colors.primary }]}>{t('demoPosition')}</Text>
+            </Pressable>
+            <Pressable
+              testID="clear-screen-button"
+              onPress={confirmClearScreen}
+              style={({ pressed }) => [
+                styles.clearButton,
+                { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Ionicons name="trash-outline" size={14} color={colors.destructive} />
+              <Text style={[styles.clearButtonText, { color: colors.destructive }]}>{t('clearScreen')}</Text>
+            </Pressable>
+          </View>
         </View>
 
         <Pressable
@@ -921,10 +964,13 @@ const styles = StyleSheet.create({
   soonPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 6 },
   soonText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 },
+  positionActions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1, marginLeft: 10 },
   sectionKicker: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 1.5 },
   sectionTitle: { fontSize: 22, lineHeight: 27, fontFamily: 'Inter_700Bold', letterSpacing: -0.6, marginTop: 4, flexShrink: 1 },
   textButton: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingBottom: 2 },
   textButtonLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  clearButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 6 },
+  clearButtonText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
   scanButton: { minHeight: 66, borderRadius: 16, marginBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   scanButtonCopy: { flex: 1 },
   scanButtonTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
