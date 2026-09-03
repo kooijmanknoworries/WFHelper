@@ -60,9 +60,9 @@ function createDeviceId(): string {
   ).crypto;
   if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
 
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
     const random = Math.floor(Math.random() * 16);
-    const value = character === "x" ? random : (random & 0x3) | 0x8;
+    const value = character === 'x' ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
 }
@@ -78,8 +78,6 @@ async function getDeviceId(): Promise<string> {
         await AsyncStorage.setItem(DEVICE_ID_STORAGE_KEY, generated);
         return generated;
       } catch {
-        // A session-scoped ID still lets scanning work when storage is
-        // temporarily unavailable; the server enforces the request limit.
         return createDeviceId();
       }
     })();
@@ -90,28 +88,28 @@ async function getDeviceId(): Promise<string> {
 function getScanErrorMessage(error: unknown): string {
   if (
     error &&
-    typeof error === "object" &&
-    "status" in error &&
+    typeof error === 'object' &&
+    'status' in error &&
     error.status === 429 &&
-    "data" in error
+    'data' in error
   ) {
     const data = error.data;
     const retryAfterSeconds =
-      data && typeof data === "object" && "retryAfterSeconds" in data
+      data && typeof data === 'object' && 'retryAfterSeconds' in data
         ? data.retryAfterSeconds
         : undefined;
-    if (typeof retryAfterSeconds === "number" && Number.isFinite(retryAfterSeconds)) {
+    if (typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)) {
       const minutes = Math.ceil(retryAfterSeconds / 60);
       return `Scan limit reached. Please try again in about ${minutes} ${
-        minutes === 1 ? "minute" : "minutes"
+        minutes === 1 ? 'minute' : 'minutes'
       }.`;
     }
-    return "Scan limit reached. Please try again later.";
+    return 'Scan limit reached. Please try again later.';
   }
 
   return error instanceof Error
     ? error.message
-    : "The screenshot could not be scanned. Please try again.";
+    : 'The screenshot could not be scanned. Please try again.';
 }
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
@@ -142,12 +140,14 @@ function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
 
 function BoardPreview({
   board,
+  previewMove,
   selectedCell,
   editing,
   onSelect,
   colors,
 }: {
   board: Board;
+  previewMove: Move | null;
   selectedCell: { row: number; col: number } | null;
   editing: boolean;
   onSelect: (row: number, col: number) => void;
@@ -158,6 +158,19 @@ function BoardPreview({
       {board.map((row, rowIndex) => (
         <View key={`row-${rowIndex}`} style={styles.boardRow}>
           {row.map((letter, colIndex) => {
+            const previewOffset =
+              previewMove?.direction === 'H' && previewMove.row === rowIndex
+                ? colIndex - previewMove.col
+                : previewMove?.direction === 'V' && previewMove.col === colIndex
+                  ? rowIndex - previewMove.row
+                  : -1;
+            const previewLetter =
+              !letter &&
+              previewMove &&
+              previewOffset >= 0 &&
+              previewOffset < previewMove.word.length
+                ? previewMove.word[previewOffset]
+                : '';
             const isSelected =
               selectedCell?.row === rowIndex && selectedCell.col === colIndex;
             const premium = getPremiumLabel(rowIndex, colIndex);
@@ -183,6 +196,8 @@ function BoardPreview({
                   {
                     backgroundColor: letter
                       ? colors.tile
+                      : previewLetter
+                        ? colors.suggestion
                       : premiumBackground || colors.boardCell,
                     borderColor: colors.boardBorder,
                     opacity: pressed && editing ? 0.7 : 1,
@@ -190,9 +205,9 @@ function BoardPreview({
                   isSelected && { borderColor: colors.primary, borderWidth: 2 },
                 ]}
               >
-                {letter ? (
+                {letter || previewLetter ? (
                     <Text style={[styles.boardLetter, { color: colors.tileForeground }]}>
-                    {letter}
+                    {letter || previewLetter}
                   </Text>
                 ) : (
                     <Text style={[styles.premiumText, { color: colors.premiumForeground }]}>
@@ -212,39 +227,63 @@ function MoveRow({
   move,
   rank,
   colors,
+  selected,
+  onPress,
 }: {
   move: Move;
   rank: number;
   colors: ReturnType<typeof useColors>;
+  selected: boolean;
+  onPress: () => void;
 }) {
   return (
-    <View style={[styles.moveRow, { borderBottomColor: colors.border }]}>
-      <View style={[styles.rankBubble, { backgroundColor: rank === 1 ? colors.primary : colors.secondary }]}>
-        <Text style={[styles.rankText, { color: rank === 1 ? colors.primaryForeground : colors.foreground }]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.moveRow,
+        {
+          borderBottomColor: colors.border,
+          backgroundColor: selected ? colors.primary : 'transparent',
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <View style={styles.rankColumn}>
+        <Text style={[styles.rankText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>
           {rank}
         </Text>
       </View>
       <View style={styles.moveBody}>
         <View style={styles.moveTitleRow}>
-          <Text style={[styles.moveWord, { color: colors.foreground }]}>{move.word}</Text>
-          <Text style={[styles.moveScore, { color: colors.primary }]}>+{move.score}</Text>
-        </View>
-        <Text style={[styles.moveMeta, { color: colors.mutedForeground }]}>
-          {move.direction === 'H' ? 'Horizontal' : 'Vertical'} · row {move.row + 1}, col {move.col + 1} · {move.tilesUsed} new {move.tilesUsed === 1 ? 'tile' : 'tiles'}
-        </Text>
-        {move.crossWords.length > 0 && (
-          <View style={styles.crossRow}>
-            <Text style={[styles.crossLabel, { color: colors.mutedForeground }]}>CROSS</Text>
-            {move.crossWords.slice(0, 3).map((crossWord) => (
-              <View key={crossWord} style={[styles.crossChip, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.crossChipText, { color: colors.accentForeground }]}>{crossWord}</Text>
-              </View>
-            ))}
+          <Text style={[styles.moveWord, { color: selected ? colors.primaryForeground : colors.foreground }]}>
+            {move.word}
+          </Text>
+          <View style={styles.moveScoreGroup}>
+            <Text style={[styles.moveScore, { color: colors.suggestion }]}>{move.score}</Text>
+            <Text style={[styles.movePoints, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>
+              points
+            </Text>
           </View>
+        </View>
+        {selected && (
+          <>
+            <Text style={[styles.moveMeta, { color: colors.primaryForeground }]}>
+              {move.direction === 'H' ? 'Horizontal' : 'Vertical'} · row {move.row + 1}, col {move.col + 1} · {move.tilesUsed} new {move.tilesUsed === 1 ? 'tile' : 'tiles'}
+            </Text>
+            <Text style={[styles.crossSummary, { color: colors.primaryForeground }]}>
+              {move.crossWords.length > 0
+                ? `Valid crossings: ${move.crossWords.join(', ')}`
+                : 'No crossing words formed'}
+            </Text>
+          </>
         )}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-    </View>
+      <Ionicons
+        name={move.direction === 'H' ? 'arrow-forward' : 'arrow-down'}
+        size={17}
+        color={selected ? colors.primaryForeground : colors.mutedForeground}
+      />
+    </Pressable>
   );
 }
 
@@ -257,6 +296,7 @@ export default function HomeScreen() {
   const [editingBoard, setEditingBoard] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [results, setResults] = useState<Move[]>([]);
+  const [selectedMove, setSelectedMove] = useState<Move | null>(null);
   const [isSolving, setIsSolving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
@@ -284,12 +324,16 @@ export default function HomeScreen() {
     const nextBoard = board.map((row) => [...row]);
     nextBoard[selectedCell.row][selectedCell.col] = value.slice(-1).toUpperCase().replace(/[^A-Z]/g, '');
     setBoard(nextBoard);
+    setResults([]);
+    setSelectedMove(null);
   };
 
   const handleImport = async () => {
     setIsImporting(true);
     setScanError(null);
     setScanInfo(null);
+    setResults([]);
+    setSelectedMove(null);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -335,7 +379,10 @@ export default function HomeScreen() {
       });
       setEditingBoard(true);
       setSelectedCell(null);
-      setResults(scannedRack.length >= 2 ? findBestMoves(scannedBoard, scannedRack) : []);
+      const scannedResults =
+        scannedRack.length >= 2 ? findBestMoves(scannedBoard, scannedRack) : [];
+      setResults(scannedResults);
+      setSelectedMove(scannedResults[0] ?? null);
       await AsyncStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({ board: scannedBoard, rack: scannedRack }),
@@ -355,6 +402,7 @@ export default function HomeScreen() {
     await new Promise((resolve) => setTimeout(resolve, 180));
     const nextResults = findBestMoves(board, rack);
     setResults(nextResults);
+    setSelectedMove(nextResults[0] ?? null);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board, rack }));
     setIsSolving(false);
   };
@@ -366,6 +414,7 @@ export default function HomeScreen() {
     setScanInfo(null);
     setScanError(null);
     setResults([]);
+    setSelectedMove(null);
     setEditingBoard(false);
     setSelectedCell(null);
   };
@@ -396,7 +445,7 @@ export default function HomeScreen() {
 
         <View style={styles.hero}>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>DUTCH WORD ENGINE · BETA</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>Play the best{'\n'}move.</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Play the best move.</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             Import a Wordfeud screenshot to read the board, rack, and every crossing word.
           </Text>
@@ -414,7 +463,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.sectionHeader, { marginTop: 28 }]}>
+        <View style={[styles.sectionHeader, { marginTop: 20 }]}>
           <View>
             <Text style={[styles.sectionKicker, { color: colors.mutedForeground }]}>POSITION</Text>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your board</Text>
@@ -491,6 +540,7 @@ export default function HomeScreen() {
 
           <BoardPreview
             board={board}
+            previewMove={editingBoard ? null : selectedMove}
             selectedCell={selectedCell}
             editing={editingBoard}
             onSelect={(row, col) => setSelectedCell({ row, col })}
@@ -554,7 +604,11 @@ export default function HomeScreen() {
           <TextInput
             testID="rack-input"
             value={rack}
-            onChangeText={(value) => setRack(value.toUpperCase().replace(/[^A-Z?]/g, '').slice(0, 7))}
+            onChangeText={(value) => {
+              setRack(value.toUpperCase().replace(/[^A-Z?]/g, '').slice(0, 7));
+              setResults([]);
+              setSelectedMove(null);
+            }}
             placeholder="e.g. AARTE?"
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="characters"
@@ -595,7 +649,14 @@ export default function HomeScreen() {
         {results.length > 0 ? (
           <View style={[styles.resultsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {results.map((move, index) => (
-              <MoveRow key={`${move.word}-${move.row}-${move.col}-${move.direction}`} move={move} rank={index + 1} colors={colors} />
+              <MoveRow
+                key={`${move.word}-${move.row}-${move.col}-${move.direction}`}
+                move={move}
+                rank={index + 1}
+                colors={colors}
+                selected={selectedMove === move}
+                onPress={() => setSelectedMove(move)}
+              />
             ))}
           </View>
         ) : (
@@ -629,11 +690,11 @@ const styles = StyleSheet.create({
   logoTileScore: { position: 'absolute', top: 3, right: 4, fontSize: 8, lineHeight: 9, fontFamily: 'Inter_700Bold' },
   logoText: { fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginLeft: 8 },
   iconButton: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  hero: { marginTop: 38, marginBottom: 22 },
-  eyebrow: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.6, marginBottom: 12 },
-  title: { fontSize: 42, lineHeight: 44, fontFamily: 'Inter_700Bold', letterSpacing: -2 },
-  subtitle: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular', marginTop: 14, maxWidth: 285 },
-  languageRow: { borderRadius: 14, minHeight: 50, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  hero: { marginTop: 24, marginBottom: 14 },
+  eyebrow: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1.4, marginBottom: 7 },
+  title: { fontSize: 28, lineHeight: 33, fontFamily: 'Inter_700Bold', letterSpacing: -1.2 },
+  subtitle: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular', marginTop: 7, maxWidth: 330 },
+  languageRow: { borderRadius: 12, minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   languageLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   languageDot: { width: 8, height: 8, borderRadius: 4 },
   languageText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
@@ -651,8 +712,8 @@ const styles = StyleSheet.create({
   scanButtonHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3, opacity: 0.82 },
   scanError: { borderRadius: 13, borderWidth: 1, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
   scanErrorText: { flex: 1, fontSize: 11, lineHeight: 16, fontFamily: 'Inter_500Medium' },
-  boardCard: { borderRadius: 22, borderWidth: 1, padding: 14 },
-  boardCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  boardCard: { borderRadius: 18, borderWidth: 1, padding: 10 },
+  boardCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   boardStatus: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   boardStatusText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   editButton: { borderRadius: 9, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6 },
@@ -685,20 +746,19 @@ const styles = StyleSheet.create({
   resultsHeader: { paddingTop: 34, paddingBottom: 13, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderBottomWidth: 1 },
   resultCount: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
   resultCountText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  resultsCard: { borderRadius: 18, borderWidth: 1, marginTop: 12, paddingHorizontal: 13 },
-  moveRow: { minHeight: 86, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },
+  resultsCard: { borderRadius: 16, borderWidth: 1, marginTop: 12, overflow: 'hidden' },
+  moveRow: { minHeight: 58, paddingVertical: 9, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },
   moveRowLast: { borderBottomWidth: 0 },
-  rankBubble: { width: 27, height: 27, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginRight: 11 },
-  rankText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  rankColumn: { width: 24, alignItems: 'flex-start' },
+  rankText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   moveBody: { flex: 1 },
   moveTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  moveWord: { fontSize: 18, fontFamily: 'Inter_700Bold', letterSpacing: 0.3 },
-  moveScore: { fontSize: 17, fontFamily: 'Inter_700Bold' },
-  moveMeta: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  crossRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  crossLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
-  crossChip: { borderRadius: 5, paddingHorizontal: 5, paddingVertical: 3 },
-  crossChipText: { fontSize: 9, fontFamily: 'Inter_700Bold' },
+  moveWord: { fontSize: 19, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.5 },
+  moveScoreGroup: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginRight: 7 },
+  moveScore: { fontSize: 20, fontFamily: 'Inter_700Bold' },
+  movePoints: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  moveMeta: { fontSize: 9, fontFamily: 'Inter_500Medium', marginTop: 3, opacity: 0.85 },
+  crossSummary: { fontSize: 9, fontFamily: 'Inter_500Medium', marginTop: 3, opacity: 0.85 },
   emptyResults: { borderRadius: 18, borderWidth: 1, padding: 22, marginTop: 12, alignItems: 'center' },
   emptyIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter_700Bold' },

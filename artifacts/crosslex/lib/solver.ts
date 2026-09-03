@@ -164,6 +164,7 @@ export const DUTCH_WORDS = [
   'DORP',
   'DRIE',
   'DROP',
+  'EDDY',
   'EEN',
   'EER',
   'EIGEN',
@@ -175,6 +176,7 @@ export const DUTCH_WORDS = [
   'EROP',
   'ETEN',
   'FLES',
+  'FUDGE',
   'GA',
   'GAT',
   'GEEL',
@@ -402,25 +404,66 @@ function scoreMove(
   direction: Direction,
   blankIndexes: number[],
 ) {
-  let score = 0;
-  let wordMultiplier = 1;
-  let letterIndex = 0;
+  const placementBoard = board.map((boardRow) => [...boardRow]);
+  const newTiles: Array<{ row: number; col: number; letter: string; letterIndex: number }> = [];
+  let mainScore = 0;
+  let mainWordMultiplier = 1;
   let currentRow = row;
   let currentCol = col;
-  for (const letter of word) {
+
+  for (const [letterIndex, letter] of [...word].entries()) {
     if (!getCell(board, currentRow, currentCol)) {
       const premium = PREMIUMS[`${currentRow}:${currentCol}`];
       const value = blankIndexes.includes(letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
-      score += value * (premium?.letterMultiplier ?? 1);
-      wordMultiplier *= premium?.wordMultiplier ?? 1;
+      mainScore += value * (premium?.letterMultiplier ?? 1);
+      mainWordMultiplier *= premium?.wordMultiplier ?? 1;
+      newTiles.push({ row: currentRow, col: currentCol, letter, letterIndex });
+      placementBoard[currentRow][currentCol] = letter;
     } else {
-      score += LETTER_VALUES[letter] ?? 0;
+      mainScore += LETTER_VALUES[letter] ?? 0;
     }
     currentRow += direction === 'V' ? 1 : 0;
     currentCol += direction === 'H' ? 1 : 0;
-    letterIndex += 1;
   }
-  return score * wordMultiplier;
+
+  let crossScore = 0;
+  const crossDirection: Direction = direction === 'H' ? 'V' : 'H';
+  const rowStep = crossDirection === 'V' ? 1 : 0;
+  const colStep = crossDirection === 'H' ? 1 : 0;
+
+  for (const tile of newTiles) {
+    let startRow = tile.row;
+    let startCol = tile.col;
+    while (getCell(placementBoard, startRow - rowStep, startCol - colStep)) {
+      startRow -= rowStep;
+      startCol -= colStep;
+    }
+
+    let wordScore = 0;
+    let wordMultiplier = 1;
+    let wordLength = 0;
+    let scanRow = startRow;
+    let scanCol = startCol;
+    while (isInside(scanRow, scanCol) && getCell(placementBoard, scanRow, scanCol)) {
+      const letter = getCell(placementBoard, scanRow, scanCol);
+      if (scanRow === tile.row && scanCol === tile.col) {
+        const premium = PREMIUMS[`${scanRow}:${scanCol}`];
+        const value = blankIndexes.includes(tile.letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
+        wordScore += value * (premium?.letterMultiplier ?? 1);
+        wordMultiplier *= premium?.wordMultiplier ?? 1;
+      } else {
+        wordScore += LETTER_VALUES[letter] ?? 0;
+      }
+      wordLength += 1;
+      scanRow += rowStep;
+      scanCol += colStep;
+    }
+
+    if (wordLength > 1) crossScore += wordScore * wordMultiplier;
+  }
+
+  const rackBonus = newTiles.length === RACK_SIZE ? 40 : 0;
+  return mainScore * mainWordMultiplier + crossScore + rackBonus;
 }
 
 function canUseRack(

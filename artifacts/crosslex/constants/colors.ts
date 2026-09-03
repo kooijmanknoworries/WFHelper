@@ -62,6 +62,8 @@ const colors = {
     tripleWord: '#9c5938',
     center: '#98518f',
     premiumForeground: '#ffffff',
+    suggestion: '#91e51f',
+    suggestionForeground: '#14210b',
   },
 
   // Border radius (in px). Sync from the sibling web artifact's --radius
