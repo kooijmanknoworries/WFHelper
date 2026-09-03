@@ -44,33 +44,76 @@ const LETTER_VALUES: Record<string, number> = {
   '?': 0,
 };
 
-const PREMIUMS: Record<string, number> = {
-  '7:7': 2,
-  '0:0': 3,
-  '0:7': 3,
-  '0:14': 3,
-  '7:0': 3,
-  '7:14': 3,
-  '14:0': 3,
-  '14:7': 3,
-  '14:14': 3,
-  '1:1': 2,
-  '2:2': 2,
-  '3:3': 2,
-  '4:4': 2,
-  '10:10': 2,
-  '11:11': 2,
-  '12:12': 2,
-  '13:13': 2,
-  '1:13': 2,
-  '2:12': 2,
-  '3:11': 2,
-  '4:10': 2,
-  '10:4': 2,
-  '11:3': 2,
-  '12:2': 2,
-  '13:1': 2,
+export type PremiumLabel = 'TL' | 'DL' | 'TW' | 'DW' | '★';
+
+type Premium = {
+  label: PremiumLabel;
+  letterMultiplier?: number;
+  wordMultiplier?: number;
 };
+
+const PREMIUM_COORDINATES: Record<Exclude<PremiumLabel, '★'>, string[]> = {
+  TW: [
+    '0:0', '0:4', '0:10', '0:14',
+    '4:0', '4:14',
+    '10:0', '10:14',
+    '14:0', '14:4', '14:10', '14:14',
+  ],
+  DW: [
+    '2:2', '2:12',
+    '3:7',
+    '4:4', '4:10',
+    '7:3', '7:11',
+    '10:4', '10:10',
+    '11:7',
+    '12:2', '12:12',
+  ],
+  TL: [
+    '1:5', '1:9',
+    '3:3', '3:11',
+    '5:1', '5:5', '5:9', '5:13',
+    '9:1', '9:5', '9:9', '9:13',
+    '11:3', '11:11',
+    '13:5', '13:9',
+  ],
+  DL: [
+    '0:7',
+    '1:1', '1:13',
+    '2:6', '2:8',
+    '4:6', '4:8',
+    '6:2', '6:4', '6:10', '6:12',
+    '7:0', '7:14',
+    '8:2', '8:4', '8:10', '8:12',
+    '10:6', '10:8',
+    '12:6', '12:8',
+    '13:1', '13:13',
+    '14:7',
+  ],
+};
+
+const PREMIUM_VALUES: Record<Exclude<PremiumLabel, '★'>, Premium> = {
+  TW: { label: 'TW', wordMultiplier: 3 },
+  DW: { label: 'DW', wordMultiplier: 2 },
+  TL: { label: 'TL', letterMultiplier: 3 },
+  DL: { label: 'DL', letterMultiplier: 2 },
+};
+
+const PREMIUMS: Record<string, Premium> = {
+  '7:7': { label: '★', wordMultiplier: 2 },
+};
+
+for (const [label, coordinates] of Object.entries(PREMIUM_COORDINATES) as [
+  Exclude<PremiumLabel, '★'>,
+  string[],
+][]) {
+  for (const coordinate of coordinates) {
+    PREMIUMS[coordinate] = PREMIUM_VALUES[label];
+  }
+}
+
+export function getPremiumLabel(row: number, col: number): PremiumLabel | '' {
+  return PREMIUMS[`${row}:${col}`]?.label ?? '';
+}
 
 // A compact Dutch starter list keeps the first build fully offline. The
 // dictionary is intentionally isolated so a complete licensed list can be
@@ -360,14 +403,16 @@ function scoreMove(
   blankIndexes: number[],
 ) {
   let score = 0;
+  let wordMultiplier = 1;
   let letterIndex = 0;
   let currentRow = row;
   let currentCol = col;
   for (const letter of word) {
     if (!getCell(board, currentRow, currentCol)) {
-      const multiplier = PREMIUMS[`${currentRow}:${currentCol}`] ?? 1;
+      const premium = PREMIUMS[`${currentRow}:${currentCol}`];
       const value = blankIndexes.includes(letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
-      score += value * multiplier;
+      score += value * (premium?.letterMultiplier ?? 1);
+      wordMultiplier *= premium?.wordMultiplier ?? 1;
     } else {
       score += LETTER_VALUES[letter] ?? 0;
     }
@@ -375,7 +420,7 @@ function scoreMove(
     currentCol += direction === 'H' ? 1 : 0;
     letterIndex += 1;
   }
-  return score;
+  return score * wordMultiplier;
 }
 
 function canUseRack(

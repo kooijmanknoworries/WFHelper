@@ -40,7 +40,8 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 ## Product
 
 - Import a board screenshot from the device photo library.
-- Edit any square on a 15×15 board and enter the seven rack tiles, including blanks.
+- Start from a blank board with the real 15×15 Wordfeud premium-square layout.
+- Edit any square and enter the seven rack tiles, including blanks.
 - Generate and rank legal horizontal and vertical moves by score.
 - Show move coordinates, tile count, and validated crossing words.
 - Load a demo position and preserve the current position locally.

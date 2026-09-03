@@ -23,6 +23,7 @@ import {
   createEmptyBoard,
   createSampleBoard,
   findBestMoves,
+  getPremiumLabel,
   Move,
 } from '@/lib/solver';
 
@@ -74,22 +75,19 @@ function BoardPreview({
           {row.map((letter, colIndex) => {
             const isSelected =
               selectedCell?.row === rowIndex && selectedCell.col === colIndex;
-            const premium =
-              rowIndex === 7 && colIndex === 7
-                ? '★'
-                : rowIndex === colIndex
-                  ? 'DW'
-                  : rowIndex + colIndex === 14
-                    ? 'DL'
-                    : '';
+            const premium = getPremiumLabel(rowIndex, colIndex);
             const premiumBackground =
               premium === '★'
-                ? colors.accent
-                : premium === 'DW'
-                  ? colors.doubleWord
-                  : premium === 'DL'
-                    ? colors.doubleLetter
-                  : '';
+                ? colors.center
+                : premium === 'TW'
+                  ? colors.tripleWord
+                  : premium === 'DW'
+                    ? colors.doubleWord
+                    : premium === 'TL'
+                      ? colors.tripleLetter
+                      : premium === 'DL'
+                        ? colors.doubleLetter
+                        : '';
             return (
               <Pressable
                 key={`cell-${rowIndex}-${colIndex}`}
@@ -169,7 +167,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [board, setBoard] = useState<Board>(createSampleBoard);
+  const [board, setBoard] = useState<Board>(createEmptyBoard);
   const [rack, setRack] = useState('AARTE?');
   const [editingBoard, setEditingBoard] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);

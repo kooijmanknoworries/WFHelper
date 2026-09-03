@@ -15,8 +15,9 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 - Screenshot import from the device photo library is implemented.
 - Imported screenshots currently require manual board verification/editing; automatic OCR is not implemented yet.
 - Editable 15×15 board with rack input for up to seven tiles.
+- The default position is a blank 15×15 Wordfeud board using the real TL, DL, TW, DW, and center-star layout.
 - `?` is supported as a blank tile and scores zero.
-- Move generation checks horizontal and vertical placements, board connection rules, crossing words, and board multipliers.
+- Move generation checks horizontal and vertical placements, board connection rules, crossing words, and the real Wordfeud letter/word multipliers.
 - Results are ranked by score and show coordinates, orientation, tiles used, and validated crossing words.
 - Current board and rack are saved locally with AsyncStorage.
 - A compact Dutch starter dictionary is embedded for the prototype; it is not yet a complete production Wordfeud dictionary pack.

@@ -56,8 +56,11 @@ const colors = {
     board: '#182332',
     boardCell: '#2b3746',
     boardBorder: '#465465',
-    doubleLetter: '#2188d3',
-    doubleWord: '#d5565f',
+    doubleLetter: '#78a85a',
+    tripleLetter: '#2a9ea5',
+    doubleWord: '#d08b42',
+    tripleWord: '#9c5938',
+    center: '#98518f',
     premiumForeground: '#ffffff',
   },
 
