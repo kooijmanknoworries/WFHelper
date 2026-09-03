@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useAudioPlayer } from 'expo-audio';
@@ -26,6 +25,7 @@ import {
   checkWordfeudWord,
   scanWordfeudBoard,
   ScanBoardInputMimeType,
+  type ScanBoardInputMimeType as ScanBoardMimeType,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useLanguage, type Translator } from '@/context/LanguageContext';
@@ -46,7 +46,6 @@ const STORAGE_KEY = '@crosslex/position';
 const DEVICE_ID_STORAGE_KEY = '@crosslex/device-id';
 const WORDFEUD_HANDOFF_STORAGE_KEY = '@crosslex/wordfeud-handoff';
 const WORDFEUD_ANDROID_PACKAGE = 'com.hbwares.wordfeud.free';
-const MAX_SCAN_IMAGE_WIDTH = 1400;
 const DEVICE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -257,6 +256,12 @@ function createDeviceId(): string {
     const value = character === 'x' ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
+}
+
+function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
+  if (value === ScanBoardInputMimeType['image/png']) return value;
+  if (value === ScanBoardInputMimeType['image/webp']) return value;
+  return ScanBoardInputMimeType['image/jpeg'];
 }
 
 async function getDeviceId(): Promise<string> {
@@ -742,34 +747,22 @@ export default function HomeScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 0.8,
+        quality: 1,
+        base64: true,
       });
       if (result.canceled) return;
 
       const asset = result.assets[0];
-      if (!asset?.uri) {
+      if (!asset?.base64) {
         throw new Error(t('screenshotPreparationError'));
       }
 
       setScreenshotUri(asset.uri);
-      const preparedImage = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        [{ resize: { width: Math.min(asset.width || MAX_SCAN_IMAGE_WIDTH, MAX_SCAN_IMAGE_WIDTH) } }],
-        {
-          compress: 0.72,
-          format: ImageManipulator.SaveFormat.JPEG,
-          base64: true,
-        },
-      );
-      if (!preparedImage.base64) {
-        throw new Error(t('screenshotPreparationError'));
-      }
-
       const deviceId = await getDeviceId();
       const scan = await scanWordfeudBoard(
         {
-          imageBase64: preparedImage.base64,
-          mimeType: ScanBoardInputMimeType['image/jpeg'],
+          imageBase64: asset.base64,
+          mimeType: getScanMimeType(asset.mimeType),
         },
         { headers: { 'X-CrossLex-Device-ID': deviceId } },
       );
