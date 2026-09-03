@@ -4,7 +4,7 @@ import { DUTCH_SITE_WORDS } from '../data/dutch-site-wordlist.ts';
 
 const openTaalRepo = 'OpenTaal/opentaal-wordlist';
 const targetedAcceptedWords = ['AZE', 'CES', 'ES', 'ZES'];
-const targetedRejectedWords = ['CM', 'CMS', 'CRM', 'CV', 'MXV', 'VJ', 'VSV'];
+const targetedRejectedWords = ['CM', 'CMS', 'CRM', 'CV', 'MXV', 'ON', 'VJ', 'VSV'];
 const targetedWords = [...targetedAcceptedWords, ...targetedRejectedWords];
 const lowercaseWordPattern = /^[a-z]{2,15}$/;
 

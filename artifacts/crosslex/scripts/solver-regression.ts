@@ -117,9 +117,24 @@ assert(
   openDutchWords.length > 290_000,
   'The licensed OpenTaal pack must contain its full filtered base.',
 );
-for (const word of ['AZE', 'ES', 'ZES']) {
+for (const word of ['AMEN', 'AZE', 'ES', 'ZES']) {
   assert(openDutchWords.includes(word), `The downloadable dictionary is missing ${word}.`);
 }
+assert(
+  !openDutchWords.includes('ON'),
+  'The downloadable dictionary must exclude TaalTik-rejected ON.',
+);
+
+const onCrossBoard = createEmptyBoard();
+onCrossBoard[5][7] = 'A';
+onCrossBoard[6][7] = 'M';
+onCrossBoard[7][7] = 'E';
+onCrossBoard[8][6] = 'O';
+const amenMoves = findBestMoves(onCrossBoard, 'N', openDutchWords, 100);
+assert(
+  !amenMoves.some((move) => move.word === 'AMEN' && move.crossWords.includes('ON')),
+  'AMEN must not be suggested when its new N creates the invalid ON crossing.',
+);
 
 function createReferenceBoard(): Board {
   const board = createEmptyBoard();
@@ -233,7 +248,7 @@ assert(
 );
 
 const openZesMoves = findBestMoves(zesReferenceBoard, 'JXVMCZS', openDutchWords, 20);
-for (const rejectedWord of ['CM', 'CMS', 'CRM', 'CV', 'MXV', 'VJ', 'VSV']) {
+for (const rejectedWord of ['CM', 'CMS', 'CRM', 'CV', 'MXV', 'ON', 'VJ', 'VSV']) {
   assert(
     !openDutchWords.includes(rejectedWord),
     `The downloadable dictionary must exclude TaalTik-rejected ${rejectedWord}.`,
