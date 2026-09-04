@@ -67,7 +67,7 @@
       "mimeType": "image/jpeg",
       "source": "anonymized-original",
       "reviewed": true,
-      "comparison": "it-and-rack",
+      "comparison": "it-vw-and-rack",
       "expected": {
         "board": [
           "...BAD.........",

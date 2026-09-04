@@ -5,6 +5,7 @@ const router: IRouter = Router();
 const BOARD_SIZE = 15;
 const MAX_IMAGE_BASE64_LENGTH = 10_000_000;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const SCAN_MODEL = "gpt-5.6-terra";
 
 type ScanPayload = {
   imageBase64?: unknown;
@@ -16,6 +17,14 @@ type ScanResult = {
   rack: string;
   confidence: number;
   warnings: string[];
+};
+
+type VWAuditTarget = {
+  kind: "board" | "rack";
+  row?: number;
+  col?: number;
+  position?: number;
+  initialLetter: "V" | "W";
 };
 
 const SCAN_INSTRUCTIONS = `You are reading a Wordfeud game screenshot.
@@ -36,6 +45,7 @@ Rules:
 - Read the player's rack at the bottom separately. Return only its uppercase letters, in left-to-right order, with no spaces. Use ? for a visibly blank rack tile.
 - Count the visible rack tiles one by one from left to right before returning the rack. A normal rack has seven separate white tile rectangles; do not skip narrow letters such as I or N between neighboring tiles. Return fewer than seven only when fewer tiles are truly visible.
 - Treat I and T as a critical ambiguity on both the board and rack. In Wordfeud's tile font, uppercase I is a narrow vertical stem with short horizontal bars at BOTH the top and bottom. Uppercase T has a wider horizontal bar only at the top and no matching bottom bar. Never classify a glyph as T merely because it has a top bar. Check the bottom edge and overall width before deciding. Both I and T can show a small point value 2, so the point number cannot distinguish them.
+- Treat V and W as another critical ambiguity. V has two diagonal strokes meeting at one bottom point; W is wider and has four diagonal strokes. In Dutch Wordfeud their printed point values provide a decisive cross-check: V has a small 4 and W has a small 5. If the glyph is visually compressed, use that point value to distinguish V from W.
 - The rack string must contain your best final reading. Never put one letter in rack while saying in warnings that the tile is probably another letter. If a warning says a tile is likely I, rack must contain I at that position; use the warning only to tell the user that the remaining confidence is lower.
 - Before returning, compare board, rack, and warnings for contradictions and correct the JSON values first.
 - Recently played board tiles may have a yellow, green, or other highlight. They are still occupied board cells and must be read.
@@ -87,6 +97,143 @@ function parseModelJson(content: string): unknown {
   return JSON.parse(cleaned);
 }
 
+function collectVWAuditTargets(result: ScanResult): VWAuditTarget[] {
+  const targets: VWAuditTarget[] = [];
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const letter = result.board[row][col];
+      if (letter === "V" || letter === "W") {
+        targets.push({
+          kind: "board",
+          row: row + 1,
+          col: col + 1,
+          initialLetter: letter,
+        });
+      }
+    }
+  }
+  for (const [index, letter] of [...result.rack].entries()) {
+    if (letter === "V" || letter === "W") {
+      targets.push({
+        kind: "rack",
+        position: index + 1,
+        initialLetter: letter,
+      });
+    }
+  }
+  return targets;
+}
+
+async function auditVWCandidates(
+  imageBase64: string,
+  mimeType: string,
+  result: ScanResult,
+): Promise<ScanResult> {
+  const targets = collectVWAuditTargets(result);
+  if (targets.length === 0) return result;
+
+  const completion = await openai.chat.completions.create({
+    model: SCAN_MODEL,
+    seed: 16,
+    max_completion_tokens: 2048,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: `Audit only the listed V/W candidates in this Dutch Wordfeud screenshot.
+
+Return JSON only:
+{"results":[{"kind":"board","row":1,"col":1,"letter":"V"},{"kind":"rack","position":1,"letter":"W"}]}
+
+Rules:
+- Return exactly one result for every listed candidate and no other cells.
+- Board rows and columns and rack positions are one-based.
+- Each returned letter must be either V or W.
+- Read the large glyph and its small point number together.
+- Dutch Wordfeud V has value 4. Dutch Wordfeud W has value 5.
+- V has two diagonal strokes meeting at one bottom point.
+- W is wider, has four diagonal strokes, and has two bottom points.
+- When the small printed number is visible, 4 means V and 5 means W even if the compressed glyph initially looked different.`,
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Recheck these exact candidates:\n${targets
+              .map((target) =>
+                target.kind === "board"
+                  ? `board R${target.row}C${target.col}, initially ${target.initialLetter}`
+                  : `rack position ${target.position}, initially ${target.initialLetter}`,
+              )
+              .join("\n")}`,
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${imageBase64}`,
+              detail: "high",
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error("The V/W audit returned no result.");
+  const parsed = parseModelJson(content) as { results?: unknown };
+  if (!Array.isArray(parsed.results) || parsed.results.length !== targets.length) {
+    throw new Error("The V/W audit did not verify every candidate.");
+  }
+
+  const board = result.board.map((row) => [...row]);
+  const rack = [...result.rack];
+  const verified = new Set<string>();
+  for (const entry of parsed.results) {
+    if (!entry || typeof entry !== "object") {
+      throw new Error("The V/W audit returned an invalid candidate.");
+    }
+    const candidate = entry as Record<string, unknown>;
+    const letter = candidate.letter;
+    if (letter !== "V" && letter !== "W") {
+      throw new Error("The V/W audit returned an invalid letter.");
+    }
+
+    if (candidate.kind === "board") {
+      const row = Number(candidate.row);
+      const col = Number(candidate.col);
+      const key = `board:${row}:${col}`;
+      const isTarget = targets.some(
+        (target) => target.kind === "board" && target.row === row && target.col === col,
+      );
+      if (!isTarget || verified.has(key)) {
+        throw new Error("The V/W audit returned an unexpected board cell.");
+      }
+      board[row - 1][col - 1] = letter;
+      verified.add(key);
+    } else if (candidate.kind === "rack") {
+      const position = Number(candidate.position);
+      const key = `rack:${position}`;
+      const isTarget = targets.some(
+        (target) => target.kind === "rack" && target.position === position,
+      );
+      if (!isTarget || verified.has(key)) {
+        throw new Error("The V/W audit returned an unexpected rack position.");
+      }
+      rack[position - 1] = letter;
+      verified.add(key);
+    } else {
+      throw new Error("The V/W audit returned an invalid target kind.");
+    }
+  }
+
+  if (verified.size !== targets.length) {
+    throw new Error("The V/W audit did not verify every candidate.");
+  }
+  return { ...result, board, rack: rack.join("") };
+}
+
 router.post("/scan-board", async (req, res) => {
   const { imageBase64, mimeType } = (req.body ?? {}) as ScanPayload;
 
@@ -106,7 +253,7 @@ router.post("/scan-board", async (req, res) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.6-terra",
+      model: SCAN_MODEL,
       seed: 16,
       max_completion_tokens: 8192,
       response_format: { type: "json_object" },
@@ -135,12 +282,17 @@ router.post("/scan-board", async (req, res) => {
     if (!content) throw new Error("The vision model returned no scan result.");
 
     const parsed = parseModelJson(content) as Record<string, unknown>;
-    const result: ScanResult = {
+    const initialResult: ScanResult = {
       board: normalizeBoard(parsed.board),
       rack: normalizeRack(parsed.rack),
       confidence: normalizeConfidence(parsed.confidence),
       warnings: normalizeWarnings(parsed.warnings),
     };
+    const result = await auditVWCandidates(
+      imageBase64,
+      normalizedMimeType,
+      initialResult,
+    );
 
     res.json(result);
   } catch (error) {
