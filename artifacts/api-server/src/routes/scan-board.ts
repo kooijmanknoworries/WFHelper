@@ -27,6 +27,12 @@ type VWAuditTarget = {
   initialLetter: "V" | "W";
 };
 
+type VWAuditResult = {
+  result: ScanResult;
+  durationMs: number;
+  targetCount: number;
+};
+
 const SCAN_INSTRUCTIONS = `You are reading a Wordfeud game screenshot.
 
 Return JSON only, with exactly this shape:
@@ -128,14 +134,17 @@ async function auditVWCandidates(
   imageBase64: string,
   mimeType: string,
   result: ScanResult,
-): Promise<ScanResult> {
+): Promise<VWAuditResult> {
   const targets = collectVWAuditTargets(result);
-  if (targets.length === 0) return result;
+  if (targets.length === 0) {
+    return { result, durationMs: 0, targetCount: 0 };
+  }
 
+  const startedAt = performance.now();
   const completion = await openai.chat.completions.create({
     model: SCAN_MODEL,
     seed: 16,
-    max_completion_tokens: 2048,
+    max_completion_tokens: 512,
     response_format: { type: "json_object" },
     messages: [
       {
@@ -231,7 +240,11 @@ Rules:
   if (verified.size !== targets.length) {
     throw new Error("The V/W audit did not verify every candidate.");
   }
-  return { ...result, board, rack: rack.join("") };
+  return {
+    result: { ...result, board, rack: rack.join("") },
+    durationMs: Math.round(performance.now() - startedAt),
+    targetCount: targets.length,
+  };
 }
 
 router.post("/scan-board", async (req, res) => {
@@ -252,6 +265,7 @@ router.post("/scan-board", async (req, res) => {
       : "image/jpeg";
 
   try {
+    const scanStartedAt = performance.now();
     const completion = await openai.chat.completions.create({
       model: SCAN_MODEL,
       seed: 16,
@@ -280,6 +294,7 @@ router.post("/scan-board", async (req, res) => {
 
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("The vision model returned no scan result.");
+    const firstPassDurationMs = Math.round(performance.now() - scanStartedAt);
 
     const parsed = parseModelJson(content) as Record<string, unknown>;
     const initialResult: ScanResult = {
@@ -288,13 +303,22 @@ router.post("/scan-board", async (req, res) => {
       confidence: normalizeConfidence(parsed.confidence),
       warnings: normalizeWarnings(parsed.warnings),
     };
-    const result = await auditVWCandidates(
+    const audit = await auditVWCandidates(
       imageBase64,
       normalizedMimeType,
       initialResult,
     );
+    req.log?.info(
+      {
+        firstPassDurationMs,
+        vwAuditDurationMs: audit.durationMs,
+        totalScanDurationMs: Math.round(performance.now() - scanStartedAt),
+        vwAuditTargetCount: audit.targetCount,
+      },
+      "Wordfeud screenshot scan timing",
+    );
 
-    res.json(result);
+    res.json(audit.result);
   } catch (error) {
     req.log?.error({ err: error }, "Wordfeud screenshot scan failed");
     res.status(502).json({
