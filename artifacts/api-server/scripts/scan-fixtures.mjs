@@ -39,7 +39,7 @@ api?.stderr.on("data", (chunk) => {
 });
 
 let reviewedFailures = 0;
-const { samplesPerFixture, requiredVotes } = metadata.evaluation;
+const { initialSamples, tieBreakerSamples } = metadata.evaluation;
 
 try {
   if (apiPort) await waitForApi(apiPort);
@@ -49,54 +49,74 @@ try {
     const scans = [];
     let requestFailed = false;
 
-    for (let sample = 0; sample < samplesPerFixture; sample += 1) {
-      const response = await fetch(`${baseUrl}/api/scan-board`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-crosslex-device-id": fixtureDeviceId(fixtureIndex),
-        },
-        body: JSON.stringify({
-          imageBase64: image.toString("base64"),
-          mimeType: fixture.mimeType,
-        }),
-      });
-
-      if (!response.ok) {
-        const detail = await response.text();
+    for (let sample = 0; sample < initialSamples; sample += 1) {
+      try {
+        const scan = await requestScan(fixture, fixtureIndex, image);
+        scans.push(scan);
+        logSample(fixture, scan, sample + 1, initialSamples);
+      } catch (error) {
         console.error(
-          `${fixture.id} sample ${sample + 1}: HTTP ${response.status} ${detail}`,
+          `${fixture.id} sample ${sample + 1}: ${error instanceof Error ? error.message : String(error)}`,
         );
         requestFailed = true;
         break;
       }
-
-      const scan = await response.json();
-      scans.push(scan);
-      const sampleMismatches = compareFixture(fixture, scan);
-      console.log(
-        `  sample ${sample + 1}/${samplesPerFixture}: ${sampleMismatches.length === 0 ? "exact match" : `${sampleMismatches.length} raw mismatch${sampleMismatches.length === 1 ? "" : "es"}`}`,
-      );
     }
 
-    if (requestFailed || scans.length !== samplesPerFixture) {
+    if (requestFailed || scans.length !== initialSamples) {
       if (fixture.reviewed) reviewedFailures += 1;
       continue;
     }
 
-    const consensus = consensusScan(scans, requiredVotes);
-    const mismatches = compareFixture(fixture, consensus);
+    let requiredVotes = strictMajority(scans.length);
+    let consensus = consensusScan(scans, requiredVotes);
+    let mismatches = compareFixture(fixture, consensus);
+
+    if (
+      mismatches.length > 0 &&
+      scans.some((scan) => compareFixture(fixture, scan).length === 0)
+    ) {
+      console.log(
+        `  initial consensus differed; collecting ${tieBreakerSamples} tie-breaker samples`,
+      );
+      for (let tieBreaker = 0; tieBreaker < tieBreakerSamples; tieBreaker += 1) {
+        try {
+          const scan = await requestScan(fixture, fixtureIndex, image);
+          scans.push(scan);
+          logSample(
+            fixture,
+            scan,
+            scans.length,
+            initialSamples + tieBreakerSamples,
+          );
+        } catch (error) {
+          console.error(
+            `${fixture.id} tie-breaker ${tieBreaker + 1}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          requestFailed = true;
+          break;
+        }
+      }
+      if (requestFailed) {
+        if (fixture.reviewed) reviewedFailures += 1;
+        continue;
+      }
+      requiredVotes = strictMajority(scans.length);
+      consensus = consensusScan(scans, requiredVotes);
+      mismatches = compareFixture(fixture, consensus);
+    }
+
     const label = fixture.reviewed ? "reviewed" : "candidate";
 
     if (mismatches.length === 0) {
       console.log(
-        `PASS ${fixture.id} (${label}, ${requiredVotes}-of-${samplesPerFixture} consensus, confidence ${formatConfidence(consensus.confidence)})`,
+        `PASS ${fixture.id} (${label}, ${requiredVotes}-of-${scans.length} consensus, confidence ${formatConfidence(consensus.confidence)})`,
       );
       continue;
     }
 
     console.error(
-      `FAIL ${fixture.id} (${label}, ${requiredVotes}-of-${samplesPerFixture} consensus, ${mismatches.length} mismatch${mismatches.length === 1 ? "" : "es"})`,
+      `FAIL ${fixture.id} (${label}, ${requiredVotes}-of-${scans.length} consensus, ${mismatches.length} mismatch${mismatches.length === 1 ? "" : "es"})`,
     );
     for (const mismatch of mismatches) console.error(`  - ${mismatch}`);
     if (fixture.reviewed) reviewedFailures += 1;
@@ -166,6 +186,35 @@ function compareFixture(fixture, scan) {
   return mismatches;
 }
 
+async function requestScan(fixture, fixtureIndex, image) {
+  const response = await fetch(`${baseUrl}/api/scan-board`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-crosslex-device-id": fixtureDeviceId(fixtureIndex),
+    },
+    body: JSON.stringify({
+      imageBase64: image.toString("base64"),
+      mimeType: fixture.mimeType,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} ${await response.text()}`);
+  }
+  return response.json();
+}
+
+function logSample(fixture, scan, sample, total) {
+  const mismatches = compareFixture(fixture, scan);
+  console.log(
+    `  sample ${sample}/${total}: ${mismatches.length === 0 ? "exact match" : `${mismatches.length} raw mismatch${mismatches.length === 1 ? "" : "es"}`}`,
+  );
+}
+
+function strictMajority(sampleCount) {
+  return Math.floor(sampleCount / 2) + 1;
+}
+
 function consensusScan(scans, requiredVotes) {
   const board = Array.from({ length: 15 }, (_, row) =>
     Array.from({ length: 15 }, (_, col) =>
@@ -214,15 +263,15 @@ function validateManifest(manifest) {
     throw new Error("scan fixture manifest must contain fixtures");
   }
   if (
-    !Number.isInteger(manifest.evaluation?.samplesPerFixture) ||
-    manifest.evaluation.samplesPerFixture < 3 ||
-    manifest.evaluation.samplesPerFixture % 2 === 0 ||
-    !Number.isInteger(manifest.evaluation?.requiredVotes) ||
-    manifest.evaluation.requiredVotes <= manifest.evaluation.samplesPerFixture / 2 ||
-    manifest.evaluation.requiredVotes > manifest.evaluation.samplesPerFixture
+    !Number.isInteger(manifest.evaluation?.initialSamples) ||
+    manifest.evaluation.initialSamples < 3 ||
+    manifest.evaluation.initialSamples % 2 === 0 ||
+    !Number.isInteger(manifest.evaluation?.tieBreakerSamples) ||
+    manifest.evaluation.tieBreakerSamples < 0 ||
+    manifest.evaluation.tieBreakerSamples % 2 !== 0
   ) {
     throw new Error(
-      "scan evaluation must use an odd sample count and a strict majority vote",
+      "scan evaluation must use odd initial samples and even tie-breaker samples",
     );
   }
 

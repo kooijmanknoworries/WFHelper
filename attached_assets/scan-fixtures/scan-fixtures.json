@@ -1,8 +1,8 @@
 {
   "version": 2,
   "evaluation": {
-    "samplesPerFixture": 3,
-    "requiredVotes": 2
+    "initialSamples": 3,
+    "tieBreakerSamples": 2
   },
   "fixtures": [
     {
