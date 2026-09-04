@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "evaluation": {
     "initialSamples": 3,
     "tieBreakerSamples": 2
@@ -58,6 +58,35 @@
           "......TONER...."
         ],
         "rack": "JXVNMCK",
+        "minConfidence": 0.9
+      }
+    },
+    {
+      "id": "android-wordfeud-i-rack",
+      "file": "android-wordfeud-i-rack.jpg",
+      "mimeType": "image/jpeg",
+      "source": "anonymized-original",
+      "reviewed": true,
+      "comparison": "it-and-rack",
+      "expected": {
+        "board": [
+          "...BAD.........",
+          ".....O.........",
+          ".....R.........",
+          ".....POEF......",
+          "........U......",
+          "......EDDY..N..",
+          "........G...E.S",
+          "......OVERZETTE",
+          "......H...I.E.K",
+          "......M.KETEN.S",
+          "........N.J...E",
+          ".......VOZERS..",
+          "........P...U..",
+          "............L..",
+          "..............."
+        ],
+        "rack": "NAIWLNA",
         "minConfidence": 0.9
       }
     }

@@ -147,10 +147,12 @@ try {
 function compareFixture(fixture, scan) {
   const mismatches = [];
   const actualBoard = Array.isArray(scan.board) ? scan.board : [];
+  const compareEntireBoard = fixture.comparison !== "it-and-rack";
 
   for (let row = 0; row < 15; row += 1) {
     for (let col = 0; col < 15; col += 1) {
       const expected = decodeCell(fixture.expected.board[row][col]);
+      if (!compareEntireBoard && expected !== "I" && expected !== "T") continue;
       const actual =
         Array.isArray(actualBoard[row]) && typeof actualBoard[row][col] === "string"
           ? actualBoard[row][col]
@@ -283,6 +285,12 @@ function validateManifest(manifest) {
     ids.add(fixture.id);
     if (fixture.source !== "anonymized-original") {
       throw new Error(`${fixture.id}: fixture must be an anonymized original`);
+    }
+    if (
+      fixture.comparison !== undefined &&
+      fixture.comparison !== "it-and-rack"
+    ) {
+      throw new Error(`${fixture.id}: unsupported comparison mode`);
     }
     if (
       !Array.isArray(fixture.expected?.board) ||

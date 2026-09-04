@@ -1,3 +1,5 @@
 - [GitHub connector synchronization](github-connector-sync.md) — compare trees, not commit IDs, and preserve remote-only files when syncing through the connector.
 - [Dutch dictionary sourcing](dutch-dictionary-sourcing.md) — use licensed OpenTaal for bulk data; reserve TaalTik and Woordenlijst.org for targeted dual verification.
 - [Transitive security overrides](transitive-security-overrides.md) — validate patched leaf dependencies through their real parent consumer, not just the audit result.
+- [OpenAPI codegen with Zod 3](openapi-codegen-zod3.md) — avoid URI formats that generate Zod helpers unavailable in this workspace.
+- [Focused OCR fixtures](focused-ocr-fixtures.md) — test a reported glyph ambiguity without letting unrelated OCR errors obscure that regression.
