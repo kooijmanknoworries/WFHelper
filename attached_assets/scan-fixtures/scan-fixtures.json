@@ -1,5 +1,9 @@
 {
   "version": 2,
+  "evaluation": {
+    "samplesPerFixture": 3,
+    "requiredVotes": 2
+  },
   "fixtures": [
     {
       "id": "android-dark-board-rack",

@@ -39,44 +39,64 @@ api?.stderr.on("data", (chunk) => {
 });
 
 let reviewedFailures = 0;
+const { samplesPerFixture, requiredVotes } = metadata.evaluation;
 
 try {
   if (apiPort) await waitForApi(apiPort);
 
   for (const [fixtureIndex, fixture] of metadata.fixtures.entries()) {
     const image = await readFile(resolve(fixtureRoot, fixture.file));
-    const response = await fetch(`${baseUrl}/api/scan-board`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-crosslex-device-id": fixtureDeviceId(fixtureIndex),
-      },
-      body: JSON.stringify({
-        imageBase64: image.toString("base64"),
-        mimeType: fixture.mimeType,
-      }),
-    });
+    const scans = [];
+    let requestFailed = false;
 
-    if (!response.ok) {
-      const detail = await response.text();
-      console.error(`${fixture.id}: HTTP ${response.status} ${detail}`);
+    for (let sample = 0; sample < samplesPerFixture; sample += 1) {
+      const response = await fetch(`${baseUrl}/api/scan-board`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-crosslex-device-id": fixtureDeviceId(fixtureIndex),
+        },
+        body: JSON.stringify({
+          imageBase64: image.toString("base64"),
+          mimeType: fixture.mimeType,
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        console.error(
+          `${fixture.id} sample ${sample + 1}: HTTP ${response.status} ${detail}`,
+        );
+        requestFailed = true;
+        break;
+      }
+
+      const scan = await response.json();
+      scans.push(scan);
+      const sampleMismatches = compareFixture(fixture, scan);
+      console.log(
+        `  sample ${sample + 1}/${samplesPerFixture}: ${sampleMismatches.length === 0 ? "exact match" : `${sampleMismatches.length} raw mismatch${sampleMismatches.length === 1 ? "" : "es"}`}`,
+      );
+    }
+
+    if (requestFailed || scans.length !== samplesPerFixture) {
       if (fixture.reviewed) reviewedFailures += 1;
       continue;
     }
 
-    const scan = await response.json();
-    const mismatches = compareFixture(fixture, scan);
+    const consensus = consensusScan(scans, requiredVotes);
+    const mismatches = compareFixture(fixture, consensus);
     const label = fixture.reviewed ? "reviewed" : "candidate";
 
     if (mismatches.length === 0) {
       console.log(
-        `PASS ${fixture.id} (${label}, confidence ${formatConfidence(scan.confidence)})`,
+        `PASS ${fixture.id} (${label}, ${requiredVotes}-of-${samplesPerFixture} consensus, confidence ${formatConfidence(consensus.confidence)})`,
       );
       continue;
     }
 
     console.error(
-      `FAIL ${fixture.id} (${label}, ${mismatches.length} mismatch${mismatches.length === 1 ? "" : "es"})`,
+      `FAIL ${fixture.id} (${label}, ${requiredVotes}-of-${samplesPerFixture} consensus, ${mismatches.length} mismatch${mismatches.length === 1 ? "" : "es"})`,
     );
     for (const mismatch of mismatches) console.error(`  - ${mismatch}`);
     if (fixture.reviewed) reviewedFailures += 1;
@@ -146,9 +166,64 @@ function compareFixture(fixture, scan) {
   return mismatches;
 }
 
+function consensusScan(scans, requiredVotes) {
+  const board = Array.from({ length: 15 }, (_, row) =>
+    Array.from({ length: 15 }, (_, col) =>
+      majorityValue(
+        scans.map((scan) =>
+          Array.isArray(scan.board?.[row]) && typeof scan.board[row][col] === "string"
+            ? scan.board[row][col]
+            : "",
+        ),
+        requiredVotes,
+      ),
+    ),
+  );
+  const rack = Array.from({ length: 7 }, (_, position) =>
+    majorityValue(
+      scans.map((scan) =>
+        typeof scan.rack === "string" ? (scan.rack[position] ?? "") : "",
+      ),
+      requiredVotes,
+    ),
+  ).join("");
+  const confidences = scans
+    .map((scan) => scan.confidence)
+    .filter((value) => typeof value === "number" && Number.isFinite(value))
+    .sort((left, right) => left - right);
+
+  return {
+    board,
+    rack,
+    confidence: confidences[Math.floor(confidences.length / 2)] ?? 0,
+  };
+}
+
+function majorityValue(values, requiredVotes) {
+  const counts = new Map();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  const winner = [...counts.entries()].sort(
+    ([leftValue, leftCount], [rightValue, rightCount]) =>
+      rightCount - leftCount || leftValue.localeCompare(rightValue),
+  )[0];
+  return winner && winner[1] >= requiredVotes ? winner[0] : "!";
+}
+
 function validateManifest(manifest) {
   if (!Array.isArray(manifest.fixtures) || manifest.fixtures.length === 0) {
     throw new Error("scan fixture manifest must contain fixtures");
+  }
+  if (
+    !Number.isInteger(manifest.evaluation?.samplesPerFixture) ||
+    manifest.evaluation.samplesPerFixture < 3 ||
+    manifest.evaluation.samplesPerFixture % 2 === 0 ||
+    !Number.isInteger(manifest.evaluation?.requiredVotes) ||
+    manifest.evaluation.requiredVotes <= manifest.evaluation.samplesPerFixture / 2 ||
+    manifest.evaluation.requiredVotes > manifest.evaluation.samplesPerFixture
+  ) {
+    throw new Error(
+      "scan evaluation must use an odd sample count and a strict majority vote",
+    );
   }
 
   const ids = new Set();

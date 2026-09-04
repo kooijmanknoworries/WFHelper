@@ -23,6 +23,14 @@ The evaluator starts the real API server, sends every original image through
 positions. Its report gives coordinates for board errors, positions for rack
 errors, and marks every `I→T` or `T→I` substitution as `I/T`.
 
+Because hosted vision inference has occasional one-sample variance, release
+acceptance uses three independent scans and a strict two-of-three vote for each
+board cell and rack position. A reviewed fixture passes only when the resulting
+consensus matches all 232 expected positions. Individual sample differences are
+still printed, so variance is visible without turning one outlier into a false
+release failure. A repeated wrong letter—including an I/T substitution—wins the
+majority and fails the release.
+
 The command uses the configured Replit OpenAI integration and consumes vision
 credits. It deliberately does not mock the model: its purpose is to catch model
 or prompt regressions before release.
