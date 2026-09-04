@@ -60,6 +60,26 @@ type ScanInfo = {
   needsRackReview: boolean;
 };
 
+type VWAmbiguousTile = {
+  kind: 'board' | 'rack';
+  row?: number;
+  col?: number;
+  position?: number;
+  initialLetter: 'V' | 'W';
+};
+
+type VWReviewScan = {
+  board: Board;
+  rack: string;
+  confidence: number;
+  warnings: string[];
+};
+
+type VWReviewError = {
+  scan: VWReviewScan;
+  ambiguousTiles: VWAmbiguousTile[];
+};
+
 type TaalTikWordVerdict = {
   word: string;
   status: 'allowed' | 'rejected' | 'error';
@@ -315,6 +335,51 @@ function getScanErrorMessage(error: unknown, t: Translator): string {
   return error instanceof Error
     ? error.message
     : t('scanFallbackError');
+}
+
+function getVWReviewError(error: unknown): VWReviewError | null {
+  if (!error || typeof error !== 'object' || !('status' in error) || error.status !== 422 || !('data' in error)) {
+    return null;
+  }
+  const data = error.data;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    !('code' in data) ||
+    data.code !== 'VW_VERIFICATION_REQUIRED' ||
+    !('scan' in data) ||
+    !('ambiguousTiles' in data) ||
+    !Array.isArray(data.ambiguousTiles)
+  ) {
+    return null;
+  }
+  const scan = data.scan;
+  if (
+    !scan ||
+    typeof scan !== 'object' ||
+    !('board' in scan) ||
+    !Array.isArray(scan.board) ||
+    !('rack' in scan) ||
+    typeof scan.rack !== 'string' ||
+    !('confidence' in scan) ||
+    typeof scan.confidence !== 'number' ||
+    !('warnings' in scan) ||
+    !Array.isArray(scan.warnings)
+  ) {
+    return null;
+  }
+  const ambiguousTiles = data.ambiguousTiles.filter((value): value is VWAmbiguousTile => {
+    if (!value || typeof value !== 'object' || !('kind' in value) || !('initialLetter' in value)) return false;
+    return (
+      (value.kind === 'board' || value.kind === 'rack') &&
+      (value.initialLetter === 'V' || value.initialLetter === 'W')
+    );
+  });
+  if (ambiguousTiles.length === 0) return null;
+  return {
+    scan: scan as VWReviewScan,
+    ambiguousTiles,
+  };
 }
 
 function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
@@ -614,6 +679,7 @@ export default function HomeScreen() {
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
   const [scanInfo, setScanInfo] = useState<ScanInfo | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [vwReviewTargets, setVWReviewTargets] = useState<VWAmbiguousTile[]>([]);
   const [taalTikCheck, setTaalTikCheck] = useState<TaalTikCheckState | null>(null);
   const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
   const taalTikRequestRef = useRef(0);
@@ -722,6 +788,33 @@ export default function HomeScreen() {
     setSuggestionSession(null);
   };
 
+  const confirmVWTarget = (target: VWAmbiguousTile, letter: 'V' | 'W') => {
+    let nextBoard = board;
+    let nextRack = rack;
+    if (target.kind === 'board' && target.row && target.col) {
+      nextBoard = board.map((row) => [...row]);
+      nextBoard[target.row - 1][target.col - 1] = letter;
+      setBoard(nextBoard);
+    } else if (target.kind === 'rack' && target.position) {
+      const rackLetters = [...rack];
+      rackLetters[target.position - 1] = letter;
+      nextRack = rackLetters.join('');
+      setRack(nextRack);
+    }
+    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack })).catch(
+      () => undefined,
+    );
+    setResults([]);
+    setSelectedMove(null);
+    setPlacedMove(null);
+    setSuggestionSession(null);
+    setVWReviewTargets((current) => {
+      const next = current.filter((candidate) => candidate !== target);
+      if (next.length === 0) setScanError(null);
+      return next;
+    });
+  };
+
   const beginSuggestionSession = (sourceBoard: Board, sourceRack: string, nextResults: Move[]) => {
     setSuggestionSession({ board: sourceBoard, rack: sourceRack });
     setResults(nextResults);
@@ -749,6 +842,7 @@ export default function HomeScreen() {
     setIsImporting(true);
     setScanError(null);
     setScanInfo(null);
+    setVWReviewTargets([]);
     setResults([]);
     setSelectedMove(null);
     setPlacedMove(null);
@@ -837,6 +931,31 @@ export default function HomeScreen() {
         setIsSolving(false);
       }
     } catch (error) {
+      const vwReview = getVWReviewError(error);
+      if (vwReview) {
+        const scannedBoard = vwReview.scan.board;
+        const scannedRack = vwReview.scan.rack;
+        const detectedBoardTiles = scannedBoard.reduce(
+          (total, row) => total + row.filter(Boolean).length,
+          0,
+        );
+        setBoard(scannedBoard);
+        setRack(scannedRack);
+        setScanInfo({
+          confidence: vwReview.scan.confidence,
+          detectedBoardTiles,
+          detectedRackTiles: scannedRack.length,
+          warnings: vwReview.scan.warnings,
+          needsRackReview: needsRackReview(vwReview.scan.warnings),
+        });
+        setVWReviewTargets(vwReview.ambiguousTiles);
+        setScanError(t('vwReviewRequired', vwReview.ambiguousTiles.length));
+        await AsyncStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ board: scannedBoard, rack: scannedRack }),
+        ).catch(() => undefined);
+        return;
+      }
       setScanError(getScanErrorMessage(error, t));
       if (feedbackSettings.hapticFeedback) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -847,8 +966,13 @@ export default function HomeScreen() {
   };
 
   const handleSolve = async () => {
+    if (vwReviewTargets.length > 0) {
+      setScanError(t('vwReviewRequired', vwReviewTargets.length));
+      return;
+    }
     setIsSolving(true);
     setScanError(null);
+    setVWReviewTargets([]);
     try {
       if (feedbackSettings.hapticFeedback) {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -878,6 +1002,7 @@ export default function HomeScreen() {
     taalTikRequestRef.current += 1;
     setTaalTikCheck(null);
     setScanError(null);
+    setVWReviewTargets([]);
     try {
       const sourceBoard = suggestionSession?.board ?? board;
       const sourceRack = suggestionSession?.rack ?? rack;
@@ -935,6 +1060,7 @@ export default function HomeScreen() {
     setScreenshotUri(null);
     setScanInfo(null);
     setScanError(null);
+    setVWReviewTargets([]);
     setResults([]);
     setSelectedMove(null);
     setPlacedMove(null);
@@ -957,6 +1083,7 @@ export default function HomeScreen() {
     setScreenshotUri(null);
     setScanInfo(null);
     setScanError(null);
+    setVWReviewTargets([]);
     setTaalTikCheck(null);
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
@@ -1122,6 +1249,62 @@ export default function HomeScreen() {
             colors={colors}
           />
 
+          {vwReviewTargets.length > 0 && (
+            <View style={[styles.vwReviewPanel, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+              <View style={styles.vwReviewHeader}>
+                <Ionicons name="eye-outline" size={19} color={colors.primary} />
+                <View style={styles.vwReviewCopy}>
+                  <Text style={[styles.vwReviewTitle, { color: colors.foreground }]}>{t('vwReviewTitle')}</Text>
+                  <Text style={[styles.vwReviewHint, { color: colors.mutedForeground }]}>{t('vwReviewHint')}</Text>
+                </View>
+              </View>
+              {vwReviewTargets.map((target) => {
+                const key =
+                  target.kind === 'board'
+                    ? `board-${target.row}-${target.col}`
+                    : `rack-${target.position}`;
+                return (
+                  <View key={key} style={[styles.vwReviewRow, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.vwReviewPosition, { color: colors.foreground }]}>
+                      {target.kind === 'board'
+                        ? t('vwBoardPosition', target.row ?? 0, target.col ?? 0)
+                        : t('vwRackPosition', target.position ?? 0)}
+                    </Text>
+                    <View style={styles.vwChoiceRow}>
+                      {(['V', 'W'] as const).map((letter) => (
+                        <Pressable
+                          key={letter}
+                          testID={`${key}-${letter.toLowerCase()}`}
+                          accessibilityLabel={`${key} ${letter}`}
+                          onPress={() => confirmVWTarget(target, letter)}
+                          style={({ pressed }) => [
+                            styles.vwChoice,
+                            {
+                              backgroundColor: colors.card,
+                              borderColor: colors.primary,
+                              opacity: pressed ? 0.7 : 1,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.vwChoiceText,
+                              {
+                                color: colors.foreground,
+                              },
+                            ]}
+                          >
+                            {letter}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           {editingBoard && (
             <View style={[styles.editorRow, { backgroundColor: colors.secondary }]}>
               <View style={styles.editorCopy}>
@@ -1160,9 +1343,21 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Ionicons
-                name={scanInfo ? 'checkmark-circle' : 'image-outline'}
+                name={
+                  vwReviewTargets.length > 0
+                    ? 'alert-circle'
+                    : scanInfo
+                      ? 'checkmark-circle'
+                      : 'image-outline'
+                }
                 size={20}
-                color={scanInfo ? colors.primary : colors.mutedForeground}
+                color={
+                  vwReviewTargets.length > 0
+                    ? colors.destructive
+                    : scanInfo
+                      ? colors.primary
+                      : colors.mutedForeground
+                }
               />
             </View>
           )}
@@ -1201,8 +1396,8 @@ export default function HomeScreen() {
         <Pressable
           testID="solve-button"
           onPress={handleSolve}
-          disabled={isSolving || rack.length < 2}
-          style={({ pressed }) => [styles.solveButton, { backgroundColor: colors.primary, opacity: pressed || isSolving || rack.length < 2 ? 0.7 : 1 }]}
+          disabled={isSolving || rack.length < 2 || vwReviewTargets.length > 0}
+          style={({ pressed }) => [styles.solveButton, { backgroundColor: colors.primary, opacity: pressed || isSolving || rack.length < 2 || vwReviewTargets.length > 0 ? 0.7 : 1 }]}
         >
           {isSolving ? <ActivityIndicator color={colors.primaryForeground} /> : <Ionicons name="sparkles-outline" size={19} color={colors.primaryForeground} />}
           <Text style={[styles.solveButtonText, { color: colors.primaryForeground }]}>
@@ -1374,6 +1569,16 @@ const styles = StyleSheet.create({
   editorLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   editorHint: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 3 },
   cellInput: { width: 37, height: 37, borderRadius: 9, borderWidth: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Inter_700Bold' },
+  vwReviewPanel: { marginTop: 12, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingTop: 12 },
+  vwReviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingBottom: 10 },
+  vwReviewCopy: { flex: 1 },
+  vwReviewTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  vwReviewHint: { fontSize: 10, lineHeight: 14, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  vwReviewRow: { minHeight: 50, borderTopWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  vwReviewPosition: { flex: 1, fontSize: 11, lineHeight: 15, fontFamily: 'Inter_600SemiBold' },
+  vwChoiceRow: { flexDirection: 'row', gap: 7 },
+  vwChoice: { width: 35, height: 35, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  vwChoiceText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   screenshotRow: { borderTopWidth: 1, marginTop: 14, paddingTop: 14, flexDirection: 'row', alignItems: 'center' },
   screenshotThumb: { width: 39, height: 54, borderRadius: 7 },
   screenshotCopy: { flex: 1, marginHorizontal: 10 },

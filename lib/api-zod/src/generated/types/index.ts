@@ -14,3 +14,8 @@ export * from './rateLimitError';
 export * from './scanBoardInput';
 export * from './scanBoardInputMimeType';
 export * from './scanBoardResult';
+export * from './vWAmbiguousTile';
+export * from './vWAmbiguousTileInitialLetter';
+export * from './vWAmbiguousTileKind';
+export * from './vWVerificationError';
+export * from './vWVerificationErrorCode';

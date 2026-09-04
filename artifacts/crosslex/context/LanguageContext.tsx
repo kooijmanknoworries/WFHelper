@@ -90,6 +90,12 @@ const translations = {
       `${boardTiles} bordtegels en ${rackTiles} rektegels herkend. Controleer en corrigeer fouten.`,
     rackReviewRequired:
       'Rekletter onzeker. Controleer vooral I en T en tik daarna op ‘Beste zetten vinden’.',
+    vwReviewTitle: 'Bevestig V of W',
+    vwReviewRequired: (count: number) =>
+      `${count === 1 ? 'Eén tegel moet' : `${count} tegels moeten`} nog als V of W worden bevestigd.`,
+    vwReviewHint: 'Kies per gemarkeerde positie de letter op de tegel. Daarna wordt zetadvies vrijgegeven.',
+    vwBoardPosition: (row: number, column: number) => `Bord · rij ${row}, kolom ${column}`,
+    vwRackPosition: (position: number) => `Rek · positie ${position}`,
     yourRack: 'JOUW REK',
     rackQuestion: 'Welke tegels heb je?',
     blankTileHint: 'Gebruik ? voor een blanco tegel.',
@@ -219,6 +225,12 @@ const translations = {
       `${boardTiles} board tiles and ${rackTiles} rack tiles recognized. Check and correct any errors.`,
     rackReviewRequired:
       'A rack letter is uncertain. Check I and T, then tap “Find best moves”.',
+    vwReviewTitle: 'Confirm V or W',
+    vwReviewRequired: (count: number) =>
+      `${count === 1 ? 'One tile still needs' : `${count} tiles still need`} V/W confirmation.`,
+    vwReviewHint: 'Choose the letter shown at each marked position. Move advice unlocks after all are confirmed.',
+    vwBoardPosition: (row: number, column: number) => `Board · row ${row}, column ${column}`,
+    vwRackPosition: (position: number) => `Rack · position ${position}`,
     yourRack: 'YOUR RACK',
     rackQuestion: 'What tiles do you have?',
     blankTileHint: 'Use ? for a blank tile.',
@@ -275,6 +287,9 @@ export type Translator = {
   (key: 'dictionaryUpdateError', error: string): string;
   (key: 'scanComplete', confidence: number): string;
   (key: 'recognizedSummary', boardTiles: number, rackTiles: number): string;
+  (key: 'vwReviewRequired', count: number): string;
+  (key: 'vwBoardPosition', row: number, column: number): string;
+  (key: 'vwRackPosition', position: number): string;
   (key: 'found', count: number): string;
   (key: 'movePlaced', word: string): string;
   (key: 'openWordfeud', word: string): string;

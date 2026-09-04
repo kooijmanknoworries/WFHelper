@@ -41,6 +41,57 @@ export interface ScanBoardResult {
   warnings: string[];
 }
 
+export type VWAmbiguousTileKind = typeof VWAmbiguousTileKind[keyof typeof VWAmbiguousTileKind];
+
+
+export const VWAmbiguousTileKind = {
+  board: 'board',
+  rack: 'rack',
+} as const;
+
+export type VWAmbiguousTileInitialLetter = typeof VWAmbiguousTileInitialLetter[keyof typeof VWAmbiguousTileInitialLetter];
+
+
+export const VWAmbiguousTileInitialLetter = {
+  V: 'V',
+  W: 'W',
+} as const;
+
+export interface VWAmbiguousTile {
+  kind: VWAmbiguousTileKind;
+  /**
+     * @minimum 1
+     * @maximum 15
+     */
+  row?: number;
+  /**
+     * @minimum 1
+     * @maximum 15
+     */
+  col?: number;
+  /**
+     * @minimum 1
+     * @maximum 7
+     */
+  position?: number;
+  initialLetter: VWAmbiguousTileInitialLetter;
+}
+
+export type VWVerificationErrorCode = typeof VWVerificationErrorCode[keyof typeof VWVerificationErrorCode];
+
+
+export const VWVerificationErrorCode = {
+  VW_VERIFICATION_REQUIRED: 'VW_VERIFICATION_REQUIRED',
+} as const;
+
+export interface VWVerificationError {
+  code: VWVerificationErrorCode;
+  error: string;
+  scan: ScanBoardResult;
+  /** @minItems 1 */
+  ambiguousTiles: VWAmbiguousTile[];
+}
+
 export interface CheckWordInput {
   /**
      * @minLength 2

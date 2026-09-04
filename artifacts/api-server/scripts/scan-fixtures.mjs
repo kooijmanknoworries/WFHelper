@@ -209,16 +209,85 @@ async function requestScan(fixture, fixtureIndex, image) {
     }),
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} ${await response.text()}`);
+    const body = await response.json().catch(() => null);
+    if (response.status === 422 && isValidVWReview(body)) {
+      return {
+        ...body.scan,
+        vwReviewTargetCount: body.ambiguousTiles.length,
+      };
+    }
+    throw new Error(`HTTP ${response.status} ${JSON.stringify(body)}`);
   }
   return response.json();
 }
 
 function logSample(fixture, scan, sample, total) {
   const mismatches = compareFixture(fixture, scan);
+  const reviewLabel =
+    typeof scan.vwReviewTargetCount === "number"
+      ? `; ${scan.vwReviewTargetCount} V/W tile${scan.vwReviewTargetCount === 1 ? "" : "s"} sent to review`
+      : "";
   console.log(
-    `  sample ${sample}/${total}: ${mismatches.length === 0 ? "exact match" : `${mismatches.length} raw mismatch${mismatches.length === 1 ? "" : "es"}`}`,
+    `  sample ${sample}/${total}: ${mismatches.length === 0 ? "exact match" : `${mismatches.length} raw mismatch${mismatches.length === 1 ? "" : "es"}`}${reviewLabel}`,
   );
+}
+
+function isValidVWReview(body) {
+  if (
+    !body ||
+    body.code !== "VW_VERIFICATION_REQUIRED" ||
+    !body.scan ||
+    !Array.isArray(body.scan.board) ||
+    typeof body.scan.rack !== "string" ||
+    !Array.isArray(body.ambiguousTiles) ||
+    body.ambiguousTiles.length === 0
+  ) {
+    return false;
+  }
+
+  const seen = new Set();
+  return body.ambiguousTiles.every((target) => {
+    if (
+      !target ||
+      (target.initialLetter !== "V" && target.initialLetter !== "W")
+    ) {
+      return false;
+    }
+    if (target.kind === "board") {
+      const key = `board:${target.row}:${target.col}`;
+      const current = body.scan.board?.[target.row - 1]?.[target.col - 1];
+      if (
+        !Number.isInteger(target.row) ||
+        !Number.isInteger(target.col) ||
+        target.row < 1 ||
+        target.row > 15 ||
+        target.col < 1 ||
+        target.col > 15 ||
+        current !== target.initialLetter ||
+        seen.has(key)
+      ) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    }
+    if (target.kind === "rack") {
+      const key = `rack:${target.position}`;
+      const current = body.scan.rack[target.position - 1];
+      if (
+        !Number.isInteger(target.position) ||
+        target.position < 1 ||
+        target.position > 7 ||
+        current !== target.initialLetter ||
+        seen.has(key)
+      ) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    }
+    return false;
+  });
 }
 
 function strictMajority(sampleCount) {

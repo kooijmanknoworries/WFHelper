@@ -33,6 +33,8 @@ type VWAuditResult = {
   targetCount: number;
 };
 
+const VW_VERIFICATION_REQUIRED = "VW_VERIFICATION_REQUIRED";
+
 const SCAN_INSTRUCTIONS = `You are reading a Wordfeud game screenshot.
 
 Return JSON only, with exactly this shape:
@@ -303,11 +305,34 @@ router.post("/scan-board", async (req, res) => {
       confidence: normalizeConfidence(parsed.confidence),
       warnings: normalizeWarnings(parsed.warnings),
     };
-    const audit = await auditVWCandidates(
-      imageBase64,
-      normalizedMimeType,
-      initialResult,
-    );
+    let audit: VWAuditResult;
+    try {
+      audit = await auditVWCandidates(
+        imageBase64,
+        normalizedMimeType,
+        initialResult,
+      );
+    } catch (error) {
+      const ambiguousTiles = collectVWAuditTargets(initialResult);
+      if (ambiguousTiles.length > 0) {
+        req.log?.warn(
+          {
+            err: error,
+            firstPassDurationMs,
+            vwAuditTargetCount: ambiguousTiles.length,
+          },
+          "Wordfeud V/W verification requires user review",
+        );
+        res.status(422).json({
+          code: VW_VERIFICATION_REQUIRED,
+          error: "V/W tiles require confirmation before solving.",
+          scan: initialResult,
+          ambiguousTiles,
+        });
+        return;
+      }
+      throw error;
+    }
     req.log?.info(
       {
         firstPassDurationMs,
