@@ -56,6 +56,7 @@ type ScanInfo = {
   detectedBoardTiles: number;
   detectedRackTiles: number;
   warnings: string[];
+  needsRackReview: boolean;
 };
 
 type TaalTikWordVerdict = {
@@ -262,6 +263,14 @@ function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
   if (value === ScanBoardInputMimeType['image/png']) return value;
   if (value === ScanBoardInputMimeType['image/webp']) return value;
   return ScanBoardInputMimeType['image/jpeg'];
+}
+
+function needsRackReview(warnings: string[]): boolean {
+  return warnings.some(
+    (warning) =>
+      /\b(rack|rek)\b/i.test(warning) &&
+      /\b(uncertain|unclear|verify|check|ambigu|onzeker|controleer|twijfel)\w*/i.test(warning),
+  );
 }
 
 async function getDeviceId(): Promise<string> {
@@ -772,12 +781,14 @@ export default function HomeScreen() {
         (total, row) => total + row.filter(Boolean).length,
         0,
       );
+      const rackNeedsReview = needsRackReview(scan.warnings);
 
       setScanInfo({
         confidence: scan.confidence,
         detectedBoardTiles,
         detectedRackTiles: scannedRack.length,
         warnings: scan.warnings,
+        needsRackReview: rackNeedsReview,
       });
       setBoard(scannedBoard);
       setRack(scannedRack);
@@ -790,7 +801,7 @@ export default function HomeScreen() {
       );
       setIsImporting(false);
 
-      if (scannedRack.length < 2) {
+      if (scannedRack.length < 2 || rackNeedsReview) {
         if (feedbackSettings.hapticFeedback) {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -1135,7 +1146,9 @@ export default function HomeScreen() {
                 </Text>
                 <Text style={[styles.screenshotHint, { color: colors.mutedForeground }]}>
                   {scanInfo
-                    ? scanInfo.warnings[0] ??
+                    ? scanInfo.needsRackReview
+                      ? t('rackReviewRequired')
+                      : scanInfo.warnings[0] ??
                       t('recognizedSummary', scanInfo.detectedBoardTiles, scanInfo.detectedRackTiles)
                     : t('screenshotReady')}
                 </Text>

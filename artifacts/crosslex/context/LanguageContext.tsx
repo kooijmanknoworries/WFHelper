@@ -88,6 +88,8 @@ const translations = {
     scanComplete: (confidence: number) => `Scan klaar · ${Math.round(confidence * 100)}% zekerheid`,
     recognizedSummary: (boardTiles: number, rackTiles: number) =>
       `${boardTiles} bordtegels en ${rackTiles} rektegels herkend. Controleer en corrigeer fouten.`,
+    rackReviewRequired:
+      'Rekletter onzeker. Controleer vooral I en T en tik daarna op ‘Beste zetten vinden’.',
     yourRack: 'JOUW REK',
     rackQuestion: 'Welke tegels heb je?',
     blankTileHint: 'Gebruik ? voor een blanco tegel.',
@@ -215,6 +217,8 @@ const translations = {
     scanComplete: (confidence: number) => `Scan complete · ${Math.round(confidence * 100)}% confidence`,
     recognizedSummary: (boardTiles: number, rackTiles: number) =>
       `${boardTiles} board tiles and ${rackTiles} rack tiles recognized. Check and correct any errors.`,
+    rackReviewRequired:
+      'A rack letter is uncertain. Check I and T, then tap “Find best moves”.',
     yourRack: 'YOUR RACK',
     rackQuestion: 'What tiles do you have?',
     blankTileHint: 'Use ? for a blank tile.',

@@ -35,6 +35,9 @@ Rules:
 - Do not interpret player names, scores, status text, timers, or buttons as board letters.
 - Read the player's rack at the bottom separately. Return only its uppercase letters, in left-to-right order, with no spaces. Use ? for a visibly blank rack tile.
 - Count the visible rack tiles one by one from left to right before returning the rack. A normal rack has seven separate white tile rectangles; do not skip narrow letters such as I or N between neighboring tiles. Return fewer than seven only when fewer tiles are truly visible.
+- Treat I and T as a critical ambiguity on both the board and rack. Zoom in mentally on every possible I or T: I is a narrow vertical glyph without the wide top bar of T. Recheck these cells and rack tiles before finalizing the JSON.
+- The rack string must contain your best final reading. Never put one letter in rack while saying in warnings that the tile is probably another letter. If a warning says a tile is likely I, rack must contain I at that position; use the warning only to tell the user that the remaining confidence is lower.
+- Before returning, compare board, rack, and warnings for contradictions and correct the JSON values first.
 - Recently played board tiles may have a yellow, green, or other highlight. They are still occupied board cells and must be read.
 - If part of the board or rack is obscured, leave uncertain cells empty and explain that in warnings.
 - confidence is a number from 0 to 1 describing the overall recognition confidence.
@@ -113,7 +116,7 @@ router.post("/scan-board", async (req, res) => {
           content: [
             {
               type: "text",
-              text: "Read this screenshot and return the board and rack JSON. Pay special attention to the small letters on the 15x15 grid, then count every visible rack tile from left to right before returning the rack.",
+              text: "Read this screenshot and return the board and rack JSON. Pay special attention to the small letters on the 15x15 grid, count every visible rack tile from left to right, then perform a final I-versus-T check. Make sure no warning contradicts the returned board or rack.",
             },
             {
               type: "image_url",
