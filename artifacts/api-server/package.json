@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:scan-fixtures": "pnpm run build && node ./scripts/scan-fixtures.mjs"
+    "eval:scan-fixtures": "pnpm run build && node ./scripts/scan-fixtures.mjs",
+    "test:scan-fixtures": "pnpm run eval:scan-fixtures"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

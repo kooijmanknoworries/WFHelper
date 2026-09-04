@@ -107,6 +107,7 @@ router.post("/scan-board", async (req, res) => {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-5.6-terra",
+      seed: 16,
       max_completion_tokens: 8192,
       response_format: { type: "json_object" },
       messages: [

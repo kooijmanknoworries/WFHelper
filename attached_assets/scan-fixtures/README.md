@@ -1,39 +1,40 @@
-# Synthetic scan fixtures
+# Reviewed Wordfeud scan fixtures
 
-These files are intentionally synthetic Wordfeud-like screenshots. They contain
-no player names, avatars, scores, game IDs, or copied gameplay. The SVG format
-keeps each fixture small, reviewable, and easy to update while still exercising
-the API's base64 image request path.
+These fixtures are pixel-preserving anonymizations of original Wordfeud
+screenshots. Solid-color masks remove device chrome, player names, avatars,
+scores, and game status while leaving the complete 15×15 board and seven-tile
+rack unchanged.
 
-## Fixture metadata
+`scan-fixtures.json` stores the reviewed expected result for each image:
 
-`scan-fixtures.json` is the source of truth for the regression checks. Each
-fixture records:
+- `board` is exactly 15 strings of 15 characters. `.` means an empty square.
+- `rack` is exactly seven letters in left-to-right order (`?` is a blank tile).
+- `reviewed: true` makes any letter regression fail release validation.
+- `minConfidence` catches a material confidence drop even when letters match.
 
-- the screenshot file and MIME type used by the endpoint check;
-- the device class, viewport dimensions, crop, and theme it represents;
-- expected occupied board cells as zero-based `row`/`col` coordinates;
-- the expected rack, in left-to-right order;
-- the minimum acceptable overall recognition confidence.
+Run the live evaluation with:
 
-The endpoint check sends each image through the real API process and uses a
-local, deterministic vision response. This makes the shape and normalization
-checks repeatable without uploading fixture data or spending vision-model
-credits. It does not replace periodic manual or live-model accuracy review.
+```sh
+pnpm --filter @workspace/api-server run eval:scan-fixtures
+```
+
+The evaluator starts the real API server, sends every original image through
+`POST /api/scan-board`, and compares all 225 board cells plus all seven rack
+positions. Its report gives coordinates for board errors, positions for rack
+errors, and marks every `I→T` or `T→I` substitution as `I/T`.
+
+The command uses the configured Replit OpenAI integration and consumes vision
+credits. It deliberately does not mock the model: its purpose is to catch model
+or prompt regressions before release.
 
 ## Adding a fixture
 
-1. Create a synthetic or thoroughly redacted screenshot. Remove player names,
-   avatars, scores, chat, game IDs, notifications, and any other personal
-   information. Do not copy a real player's screenshot into this directory.
-2. Prefer a reviewable SVG with a realistic device viewport, board crop, and
-   light/dark Wordfeud-like theme. If a raster image is needed, use PNG, JPEG,
-   or WebP and keep it free of personal information.
-3. Add one entry to `scan-fixtures.json` with unique `id`, `file`, dimensions,
-   crop/theme details, every expected occupied cell, rack, and confidence floor.
-4. Run `pnpm --filter @workspace/api-server run test:scan-fixtures`.
-5. Review the diff and verify that the fixture contains only synthetic or
-   redacted content before committing it.
+1. Start from an original screenshot containing useful I/T examples.
+2. Mask identifying areas without resizing, redrawing, or modifying board/rack
+   pixels. Never commit an unredacted original.
+3. Add its complete reviewed 15×15 board and seven rack letters to the manifest.
+4. Run the evaluator and manually review any reported mismatch before accepting
+   a prompt or model change.
 
-Coordinates are zero-based: the top-left board square is `row: 0, col: 0`
-and the bottom-right square is `row: 14, col: 14`.
+Coordinates in reports are one-based for easy comparison with the visible
+board.
