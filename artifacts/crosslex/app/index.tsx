@@ -38,6 +38,7 @@ import {
   createEmptyBoard,
   createSampleBoard,
   findBestMoves,
+  getLetterValue,
   getPremiumLabel,
   Move,
 } from '@/lib/solver';
@@ -414,9 +415,14 @@ function BoardPreview({
                 ]}
               >
                 {letter ? (
+                  <>
                     <Text style={[styles.boardLetter, { color: colors.tileForeground }]}>
-                    {letter}
-                  </Text>
+                      {letter}
+                    </Text>
+                    <Text style={[styles.boardLetterScore, { color: colors.tileForeground }]}>
+                      {getLetterValue(letter)}
+                    </Text>
+                  </>
                 ) : (
                     <Text style={[styles.premiumText, { color: colors.premiumForeground }]}>
                     {premium}
@@ -1361,6 +1367,7 @@ const styles = StyleSheet.create({
   boardRow: { flex: 1, flexDirection: 'row' },
   boardCell: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   boardLetter: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  boardLetterScore: { position: 'absolute', top: 1, right: 2, fontSize: 5.5, lineHeight: 7, fontFamily: 'Inter_700Bold' },
   premiumText: { fontSize: 6.5, fontFamily: 'Inter_700Bold' },
   editorRow: { marginTop: 12, borderRadius: 13, padding: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   editorCopy: { flex: 1, paddingRight: 10 },

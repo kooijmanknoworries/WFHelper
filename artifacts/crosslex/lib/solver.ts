@@ -71,6 +71,10 @@ const LETTER_VALUES: Record<string, number> = {
   '?': 0,
 };
 
+export function getLetterValue(letter: string): number {
+  return LETTER_VALUES[letter.toUpperCase()] ?? 0;
+}
+
 export type PremiumLabel = '3L' | '2L' | '3W' | '2W' | '★';
 
 type Premium = {

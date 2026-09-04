@@ -5,6 +5,7 @@ import {
   createSampleBoard,
   findBestMoves,
   getDutchDictionaryStatus,
+  getLetterValue,
   getPremiumLabel,
   validateDutchDictionaryWords,
   type Board,
@@ -25,6 +26,14 @@ type ExpectedMove = {
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+for (const [letter, value] of Object.entries({
+  A: 1, B: 4, C: 5, D: 2, E: 1, F: 4, G: 3, H: 4, I: 2,
+  J: 4, K: 3, L: 3, M: 3, N: 1, O: 1, P: 4, Q: 10, R: 2,
+  S: 2, T: 2, U: 2, V: 4, W: 5, X: 8, Y: 8, Z: 5, '?': 0,
+})) {
+  assert(getLetterValue(letter) === value, `Letter value mismatch for ${letter}.`);
 }
 
 function containsMove(moves: ReturnType<typeof findBestMoves>, expected: ExpectedMove) {
