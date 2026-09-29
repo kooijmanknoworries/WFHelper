@@ -1,11 +1,14 @@
 import { Router, type IRouter } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai } from "@workspace/integrations-openai-ai-server/scan";
 
 const router: IRouter = Router();
 const BOARD_SIZE = 15;
 const MAX_IMAGE_BASE64_LENGTH = 10_000_000;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const SCAN_MODEL = "gpt-5.6-terra";
+const SCAN_MODEL = process.env.SCAN_MODEL === undefined
+  ? "gpt-5.6-terra"
+  : process.env.SCAN_MODEL.trim();
+if (!SCAN_MODEL) throw new Error("SCAN_MODEL cannot be empty.");
 
 type ScanPayload = {
   imageBase64?: unknown;

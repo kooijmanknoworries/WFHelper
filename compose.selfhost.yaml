@@ -1,0 +1,28 @@
+services:
+  wordfeud-helper:
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+    image: wordfeud-helper:selfhost
+    restart: unless-stopped
+    environment:
+      SCAN_API_BASE_URL: ${SCAN_API_BASE_URL:?Set SCAN_API_BASE_URL to the Ollama /v1 endpoint reachable from this container}
+      SCAN_API_KEY: ${SCAN_API_KEY:-ollama}
+      SCAN_MODEL: ${SCAN_MODEL:-qwen3.6:27b}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8787}:8080"
+    networks:
+      - caddy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  caddy:
+    external: true
+    name: ${CADDY_NETWORK:-caddy}

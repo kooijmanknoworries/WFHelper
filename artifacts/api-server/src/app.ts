@@ -1,13 +1,15 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { scanBoardAccess } from "./middlewares/scan-board-access";
 
 const app: Express = express();
 
-// The API runs behind Replit's reverse proxy in production.
+// Replit and self-hosted Caddy both place one reverse proxy in front of the API.
 app.set("trust proxy", 1);
 
 app.use(
@@ -37,5 +39,29 @@ app.use(express.json({ limit: "12mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// A standalone self-hosted image can serve the Expo web export on the same
+// origin as the API. Replit uses its existing artifact router when unset.
+if (process.env.SELF_HOST_WEB_DIR) {
+  const webDir = path.resolve(process.env.SELF_HOST_WEB_DIR);
+  const indexFile = path.join(webDir, "index.html");
+  if (!existsSync(indexFile)) {
+    throw new Error(`Self-hosted web export is missing: ${indexFile}`);
+  }
+
+  app.use(express.static(webDir));
+  app.use((req, res, next) => {
+    if (
+      req.method !== "GET" ||
+      req.path === "/api" ||
+      req.path.startsWith("/api/") ||
+      path.posix.extname(req.path)
+    ) {
+      next();
+      return;
+    }
+    res.sendFile(indexFile);
+  });
+}
 
 export default app;

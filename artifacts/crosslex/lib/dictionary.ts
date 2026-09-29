@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import {
   DUTCH_SITE_DICTIONARY_META,
   DUTCH_SITE_WORDS,
@@ -227,7 +228,13 @@ function getManifestUrl() {
   const configuredUrl = process.env.EXPO_PUBLIC_DICTIONARY_MANIFEST_URL;
   if (configuredUrl) return configuredUrl;
   const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
-  return apiDomain ? `https://${apiDomain}/api/dictionary/manifest` : null;
+  if (apiDomain) return `https://${apiDomain}/api/dictionary/manifest`;
+  // The self-hosted web build uses its current HTTPS origin instead of baking
+  // the operator's Caddy hostname into the image. Native builds remain unchanged.
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.protocol === 'https:') {
+    return `${window.location.origin}/api/dictionary/manifest`;
+  }
+  return null;
 }
 
 function resolvePackUrl(manifestUrl: string, packUrl: string) {

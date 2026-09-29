@@ -1,18 +1,24 @@
 import OpenAI from "openai";
 
-if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+const scanBaseUrl = process.env.SCAN_API_BASE_URL?.trim();
+const scanApiKey = process.env.SCAN_API_KEY?.trim();
+
+if ((scanBaseUrl && !scanApiKey) || (!scanBaseUrl && scanApiKey)) {
   throw new Error(
-    "AI_INTEGRATIONS_OPENAI_BASE_URL must be set. Did you forget to provision the OpenAI AI integration?",
+    "SCAN_API_BASE_URL and SCAN_API_KEY must be configured together.",
   );
 }
 
-if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+const baseURL = scanBaseUrl || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+const apiKey = scanApiKey || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+if (!baseURL || !apiKey) {
   throw new Error(
-    "AI_INTEGRATIONS_OPENAI_API_KEY must be set. Did you forget to provision the OpenAI AI integration?",
+    "Configure both SCAN_API_BASE_URL and SCAN_API_KEY, or provision the OpenAI AI integration.",
   );
 }
 
 export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey,
+  baseURL,
 });

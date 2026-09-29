@@ -1,0 +1,22 @@
+FROM node:24-bookworm-slim AS builder
+
+WORKDIR /workspace
+RUN npm install --global pnpm@10.26.1
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @workspace/api-server run build
+RUN pnpm --filter @workspace/crosslex exec expo export --platform web --output-dir /workspace/selfhost-web
+
+FROM node:24-bookworm-slim
+
+ENV NODE_ENV=production \
+    PORT=8080 \
+    SELF_HOST_WEB_DIR=/srv/wordfeud-helper/web
+
+WORKDIR /srv/wordfeud-helper
+COPY --from=builder /workspace/artifacts/api-server/dist ./api
+COPY --from=builder /workspace/selfhost-web ./web
+
+USER node
+EXPOSE 8080
+CMD ["node", "--enable-source-maps", "api/index.mjs"]

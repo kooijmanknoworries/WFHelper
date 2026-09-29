@@ -49,3 +49,6 @@ Thumbs.db
 .local/
 .conversation/
 screenshots/
+
+# Local self-host settings may contain a real model-server credential.
+/.env.selfhost
