@@ -101,10 +101,23 @@ function normalizeWarnings(value: unknown): string[] {
 }
 
 function parseModelJson(content: string): unknown {
-  const cleaned = content
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
+  let cleaned = content.trim();
+
+  // Strip markdown code fences
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+
+  // Reasoning models (e.g. Qwen3.6) may embed JSON after a long
+  // reasoning preamble.  Try to find the first top-level JSON object.
+  const firstBrace = cleaned.indexOf("{");
+  if (firstBrace > 0) {
+    const fromBrace = cleaned.slice(firstBrace);
+    try {
+      return JSON.parse(fromBrace);
+    } catch {
+      // Fall through to full-string parse below.
+    }
+  }
+
   return JSON.parse(cleaned);
 }
 
@@ -149,7 +162,7 @@ async function auditVWCandidates(
   const completion = await openai.chat.completions.create({
     model: SCAN_MODEL,
     seed: 16,
-    max_completion_tokens: 512,
+    max_completion_tokens: 16384,
     response_format: { type: "json_object" },
     messages: [
       {
@@ -194,9 +207,11 @@ Rules:
     ],
   });
 
-  const content = completion.choices[0]?.message?.content;
-  if (!content) throw new Error("The V/W audit returned no result.");
-  const parsed = parseModelJson(content) as { results?: unknown };
+  const rawVWContent = completion.choices[0]?.message?.content ?? "";
+  const rawVWReasoning = (completion.choices[0]?.message as any)?.reasoning_content ?? "";
+  const vwContent = rawVWContent || rawVWReasoning;
+  if (!vwContent) throw new Error("The V/W audit returned no result.");
+  const parsed = parseModelJson(vwContent) as { results?: unknown };
   if (!Array.isArray(parsed.results) || parsed.results.length !== targets.length) {
     throw new Error("The V/W audit did not verify every candidate.");
   }
@@ -274,7 +289,7 @@ router.post("/scan-board", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: SCAN_MODEL,
       seed: 16,
-      max_completion_tokens: 8192,
+      max_completion_tokens: 16384,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SCAN_INSTRUCTIONS },
@@ -297,7 +312,11 @@ router.post("/scan-board", async (req, res) => {
       ],
     });
 
-    const content = completion.choices[0]?.message?.content;
+    const rawContent = completion.choices[0]?.message?.content ?? "";
+    const rawReasoning = (completion.choices[0]?.message as any)?.reasoning_content ?? "";
+    // Reasoning models (e.g. Qwen3.6) may place the JSON payload inside
+    // reasoning_content when content is empty.  Merge when needed.
+    const content = rawContent || rawReasoning;
     if (!content) throw new Error("The vision model returned no scan result.");
     const firstPassDurationMs = Math.round(performance.now() - scanStartedAt);
 

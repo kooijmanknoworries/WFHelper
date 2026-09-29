@@ -52,3 +52,6 @@ screenshots/
 
 # Local self-host settings may contain a real model-server credential.
 /.env.selfhost
+
+# Environment-specific compose overrides (created by deployer)
+/compose.host.yaml
