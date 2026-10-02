@@ -10,7 +10,6 @@ export * from './apiError';
 export * from './checkWordInput';
 export * from './checkWordResult';
 export * from './healthStatus';
-export * from './rateLimitError';
 export * from './scanBoardInput';
 export * from './scanBoardInputMimeType';
 export * from './scanBoardResult';

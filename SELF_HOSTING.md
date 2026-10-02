@@ -75,7 +75,7 @@ wordfeud.home.arpa {
 
 For **Caddy installed directly on the host**, use `reverse_proxy 127.0.0.1:8787` instead. If you have a public DNS name and a normal trusted certificate, use that hostname and let your existing Caddy TLS setup handle it; `tls internal` is only an example for private-network names. Point your LAN DNS/hosts entries at the Caddy machine, reload Caddy, and visit `https://wordfeud.home.arpa/` from a device that trusts the certificate.
 
-Restrict access to your LAN or add authentication in Caddy if you make the site reachable more widely. This app does **not** provide user accounts; scan requests have per-device/IP rate limits but those do not replace access control. The app port is bound to host loopback by default, and Ollama must not be reverse-proxied publicly.
+Restrict access to your LAN or add authentication in Caddy if you make the site reachable more widely. This app does **not** provide user accounts or impose a scan-count limit, so access control must be handled by your network or proxy. Unrestricted scan requests can consume GPU resources or incur charges when using a paid model endpoint. The app port is bound to host loopback by default, and Ollama must not be reverse-proxied publicly.
 
 ## 5. Check actual scan quality
 

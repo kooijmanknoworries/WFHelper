@@ -72,10 +72,6 @@ const translations = {
     photoPermission: 'Toegang tot foto’s is nodig om een Wordfeud-screenshot te kiezen.',
     screenshotPreparationError: 'De gekozen screenshot kon niet worden voorbereid voor herkenning.',
     scanFallbackError: 'De screenshot kon niet worden gelezen. Probeer het opnieuw.',
-    scanLimitReached: 'Scanlimiet bereikt. Probeer het later opnieuw.',
-    scanLimitTryAgain: 'Scanlimiet bereikt. Probeer het later opnieuw.',
-    scanLimitWithTime: (minutes: number, unit: string) =>
-      `Scanlimiet bereikt. Probeer het over ongeveer ${minutes} ${unit} opnieuw.`,
     minute: 'minuut',
     minutes: 'minuten',
     tilesOnBoard: 'tegels op het bord',
@@ -207,10 +203,6 @@ const translations = {
     photoPermission: 'Photo access is needed to select a Wordfeud screenshot.',
     screenshotPreparationError: 'The selected screenshot could not be prepared for scanning.',
     scanFallbackError: 'The screenshot could not be scanned. Please try again.',
-    scanLimitReached: 'Scan limit reached. Please try again later.',
-    scanLimitTryAgain: 'Scan limit reached. Please try again later.',
-    scanLimitWithTime: (minutes: number, unit: string) =>
-      `Scan limit reached. Please try again in about ${minutes} ${unit}.`,
     minute: 'minute',
     minutes: 'minutes',
     tilesOnBoard: 'tiles on board',
@@ -304,7 +296,6 @@ export type Translator = {
   (key: 'validCrossings', words: string): string;
   (key: 'taalTikAllowed', word: string): string;
   (key: 'taalTikRejected', word: string): string;
-  (key: 'scanLimitWithTime', minutes: number, unit: string): string;
 };
 
 type LanguageContextValue = {

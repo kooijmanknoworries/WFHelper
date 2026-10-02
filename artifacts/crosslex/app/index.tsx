@@ -44,13 +44,8 @@ import {
 } from '@/lib/solver';
 
 const STORAGE_KEY = '@crosslex/position';
-const DEVICE_ID_STORAGE_KEY = '@crosslex/device-id';
 const WORDFEUD_HANDOFF_STORAGE_KEY = '@crosslex/wordfeud-handoff';
 const WORDFEUD_ANDROID_PACKAGE = 'com.hbwares.wordfeud.free';
-const DEVICE_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-let deviceIdPromise: Promise<string> | null = null;
 
 type ScanInfo = {
   confidence: number;
@@ -265,21 +260,6 @@ function RewardCelebration({
   );
 }
 
-function createDeviceId(): string {
-  const cryptoApi = (
-    globalThis as typeof globalThis & {
-      crypto?: { randomUUID?: () => string };
-    }
-  ).crypto;
-  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
-
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = character === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
-}
-
 function getScanMimeType(value: string | null | undefined): ScanBoardMimeType {
   if (value === ScanBoardInputMimeType['image/png']) return value;
   if (value === ScanBoardInputMimeType['image/webp']) return value;
@@ -294,44 +274,7 @@ function needsRackReview(warnings: string[]): boolean {
   );
 }
 
-async function getDeviceId(): Promise<string> {
-  if (!deviceIdPromise) {
-    deviceIdPromise = (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
-        if (stored && DEVICE_ID_PATTERN.test(stored)) return stored;
-
-        const generated = createDeviceId();
-        await AsyncStorage.setItem(DEVICE_ID_STORAGE_KEY, generated);
-        return generated;
-      } catch {
-        return createDeviceId();
-      }
-    })();
-  }
-  return deviceIdPromise;
-}
-
 function getScanErrorMessage(error: unknown, t: Translator): string {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'status' in error &&
-    error.status === 429 &&
-    'data' in error
-  ) {
-    const data = error.data;
-    const retryAfterSeconds =
-      data && typeof data === 'object' && 'retryAfterSeconds' in data
-        ? data.retryAfterSeconds
-        : undefined;
-    if (typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)) {
-      const minutes = Math.ceil(retryAfterSeconds / 60);
-      return t('scanLimitWithTime', minutes, minutes === 1 ? t('minute') : t('minutes'));
-    }
-    return t('scanLimitTryAgain');
-  }
-
   return error instanceof Error
     ? error.message
     : t('scanFallbackError');
@@ -867,13 +810,11 @@ export default function HomeScreen() {
       }
 
       setScreenshotUri(asset.uri);
-      const deviceId = await getDeviceId();
       const scan = await scanWordfeudBoard(
         {
           imageBase64: asset.base64,
           mimeType: getScanMimeType(asset.mimeType),
         },
-        { headers: { 'X-CrossLex-Device-ID': deviceId } },
       );
       const scannedBoard = scan.board as Board;
       const scannedRack = scan.rack;

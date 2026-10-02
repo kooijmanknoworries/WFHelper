@@ -24,8 +24,6 @@ const api = configuredBaseUrl
         ...process.env,
         NODE_ENV: "test",
         PORT: String(apiPort),
-        SCAN_RATE_LIMIT_PER_DEVICE: "100",
-        SCAN_RATE_LIMIT_PER_IP: "100",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -44,14 +42,14 @@ const { initialSamples, tieBreakerSamples } = metadata.evaluation;
 try {
   if (apiPort) await waitForApi(apiPort);
 
-  for (const [fixtureIndex, fixture] of metadata.fixtures.entries()) {
+  for (const fixture of metadata.fixtures) {
     const image = await readFile(resolve(fixtureRoot, fixture.file));
     const scans = [];
     let requestFailed = false;
 
     for (let sample = 0; sample < initialSamples; sample += 1) {
       try {
-        const scan = await requestScan(fixture, fixtureIndex, image);
+        const scan = await requestScan(fixture, image);
         scans.push(scan);
         logSample(fixture, scan, sample + 1, initialSamples);
       } catch (error) {
@@ -81,7 +79,7 @@ try {
       );
       for (let tieBreaker = 0; tieBreaker < tieBreakerSamples; tieBreaker += 1) {
         try {
-          const scan = await requestScan(fixture, fixtureIndex, image);
+          const scan = await requestScan(fixture, image);
           scans.push(scan);
           logSample(
             fixture,
@@ -196,12 +194,11 @@ function compareFixture(fixture, scan) {
   return mismatches;
 }
 
-async function requestScan(fixture, fixtureIndex, image) {
+async function requestScan(fixture, image) {
   const response = await fetch(`${baseUrl}/api/scan-board`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-crosslex-device-id": fixtureDeviceId(fixtureIndex),
     },
     body: JSON.stringify({
       imageBase64: image.toString("base64"),
@@ -402,10 +399,6 @@ function formatConfidence(value) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toFixed(2)
     : "invalid";
-}
-
-function fixtureDeviceId(index) {
-  return `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
 }
 
 async function findFreePort() {

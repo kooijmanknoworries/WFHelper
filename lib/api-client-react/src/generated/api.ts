@@ -24,7 +24,6 @@ import type {
   CheckWordInput,
   CheckWordResult,
   HealthStatus,
-  RateLimitError,
   ScanBoardInput,
   ScanBoardResult,
   VWVerificationError
@@ -161,7 +160,7 @@ export const scanWordfeudBoard = async (scanBoardInput: ScanBoardInput, options?
 
 
 
-export const getScanWordfeudBoardMutationOptions = <TError = ErrorType<ApiError | VWVerificationError | RateLimitError>,
+export const getScanWordfeudBoardMutationOptions = <TError = ErrorType<ApiError | VWVerificationError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanWordfeudBoard>>, TError,{data: BodyType<ScanBoardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof scanWordfeudBoard>>, TError,{data: BodyType<ScanBoardInput>}, TContext> => {
 
@@ -190,12 +189,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ScanWordfeudBoardMutationResult = NonNullable<Awaited<ReturnType<typeof scanWordfeudBoard>>>
     export type ScanWordfeudBoardMutationBody = BodyType<ScanBoardInput>
-    export type ScanWordfeudBoardMutationError = ErrorType<ApiError | VWVerificationError | RateLimitError>
+    export type ScanWordfeudBoardMutationError = ErrorType<ApiError | VWVerificationError>
 
     /**
  * @summary Recognize a Wordfeud board and rack from a screenshot
  */
-export const useScanWordfeudBoard = <TError = ErrorType<ApiError | VWVerificationError | RateLimitError>,
+export const useScanWordfeudBoard = <TError = ErrorType<ApiError | VWVerificationError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanWordfeudBoard>>, TError,{data: BodyType<ScanBoardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof scanWordfeudBoard>>,
@@ -276,3 +275,4 @@ export const useCheckWordfeudWord = <TError = ErrorType<ApiError>,
       > => {
       return useMutation(getCheckWordfeudWordMutationOptions(options));
     }
+

@@ -5,7 +5,6 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { scanBoardAccess } from "./middlewares/scan-board-access";
 
 const app: Express = express();
 
@@ -32,9 +31,6 @@ app.use(
   }),
 );
 app.use(cors());
-// Reject unauthenticated or rate-limited scan requests before parsing their
-// potentially large image body or invoking the paid vision model.
-app.use("/api/scan-board", scanBoardAccess);
 app.use(express.json({ limit: "12mb" }));
 app.use(express.urlencoded({ extended: true }));
 

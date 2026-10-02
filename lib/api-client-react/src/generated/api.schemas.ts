@@ -112,7 +112,3 @@ export interface ApiError {
   error: string;
 }
 
-export type RateLimitError = ApiError & {
-  /** @minimum 1 */
-  retryAfterSeconds: number;
-};
