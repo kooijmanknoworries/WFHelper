@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server/scan";
+import { parseBoardTiles } from "../lib/scan-board-layout";
+import { prepareNumberedBoard, ScanGridError } from "../lib/scan-board-image";
 
 const router: IRouter = Router();
 const BOARD_SIZE = 15;
@@ -42,15 +44,19 @@ const SCAN_INSTRUCTIONS = `You are reading a Wordfeud game screenshot.
 
 Return JSON only, with exactly this shape:
 {
-  "board": [["", "... 15 cells total ..."], "... 15 rows total ..."],
+  "tiles": [{"row": 1, "col": 1, "letter": "A"}],
   "rack": "SEVENLETTERS",
   "confidence": 0.0,
   "warnings": []
 }
 
 Rules:
-- board must be exactly 15 rows of exactly 15 strings.
-- Read only the central 15x15 game board. Each occupied cell is one uppercase A-Z letter; every empty cell is "".
+- Read only the central 15x15 game board. Return each occupied cell exactly once in tiles; omit empty cells.
+- The FIRST image is the game board with numbered column headings and row headings OUTSIDE its border. Use those visible headings for every coordinate. The SECOND image is the original screenshot, provided only to read the rack and tile glyph details. Do not recount board coordinates from the second image.
+- Coordinates are one-based: rows 1–15 run TOP to BOTTOM and columns 1–15 run LEFT to RIGHT. Row 1 / column 1 is the upper-left corner; column 15 is the rightmost grid cell.
+- Locate the full board's outer edges and count its 15 equal grid columns and rows before assigning any tile coordinates. Assign coordinates from each tile's actual rectangle and grid lines, not from word lengths or nearby words.
+- Empty cells still occupy grid positions. Do not compress gaps, left-align separate word groups, or move a word so its first letter lines up with the word above it.
+- Check words touching the right edge especially carefully: their final tile is in column 15, with no extra empty column after it. Cross-check each tile's alignment with the grid cells immediately above and below it, including empty and premium cells.
 - Ignore all premium-square labels such as TL, DL, TW, DW, 2L, 3W and the small point numbers printed on tiles.
 - Do not interpret player names, scores, status text, timers, or buttons as board letters.
 - Read the player's rack at the bottom separately. Return only its uppercase letters, in left-to-right order, with no spaces. Use ? for a visibly blank rack tile.
@@ -58,32 +64,11 @@ Rules:
 - Treat I and T as a critical ambiguity on both the board and rack. In Wordfeud's tile font, uppercase I is a narrow vertical stem with short horizontal bars at BOTH the top and bottom. Uppercase T has a wider horizontal bar only at the top and no matching bottom bar. Never classify a glyph as T merely because it has a top bar. Check the bottom edge and overall width before deciding. Both I and T can show a small point value 2, so the point number cannot distinguish them.
 - Treat V and W as another critical ambiguity. V has two diagonal strokes meeting at one bottom point; W is wider and has four diagonal strokes. In Dutch Wordfeud their printed point values provide a decisive cross-check: V has a small 4 and W has a small 5. If the glyph is visually compressed, use that point value to distinguish V from W.
 - The rack string must contain your best final reading. Never put one letter in rack while saying in warnings that the tile is probably another letter. If a warning says a tile is likely I, rack must contain I at that position; use the warning only to tell the user that the remaining confidence is lower.
-- Before returning, compare board, rack, and warnings for contradictions and correct the JSON values first.
+- Before returning, recheck tile coordinates against the image grid, then compare tiles, rack, and warnings for contradictions and correct the JSON values first.
 - Recently played board tiles may have a yellow, green, or other highlight. They are still occupied board cells and must be read.
-- If part of the board or rack is obscured, leave uncertain cells empty and explain that in warnings.
+- If part of the board or rack is obscured, omit uncertain board tiles and explain that in warnings.
 - confidence is a number from 0 to 1 describing the overall recognition confidence.
 - warnings is an array of short strings for anything the user should verify.`;
-
-function emptyBoard(): string[][] {
-  return Array.from({ length: BOARD_SIZE }, () => Array<string>(BOARD_SIZE).fill(""));
-}
-
-function normalizeBoard(value: unknown): string[][] {
-  const board = emptyBoard();
-  if (!Array.isArray(value)) return board;
-
-  for (let row = 0; row < BOARD_SIZE; row += 1) {
-    const sourceRow = value[row];
-    if (!Array.isArray(sourceRow)) continue;
-    for (let col = 0; col < BOARD_SIZE; col += 1) {
-      const sourceCell = sourceRow[col];
-      if (typeof sourceCell !== "string") continue;
-      const cell = sourceCell.trim().toUpperCase();
-      if (/^[A-Z]$/.test(cell)) board[row][col] = cell;
-    }
-  }
-  return board;
-}
 
 function normalizeRack(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -271,6 +256,7 @@ router.post("/scan-board", async (req, res) => {
 
   try {
     const scanStartedAt = performance.now();
+    const numberedBoard = await prepareNumberedBoard(Buffer.from(imageBase64, "base64"));
     const completion = await openai.chat.completions.create({
       model: SCAN_MODEL,
       seed: 16,
@@ -283,7 +269,14 @@ router.post("/scan-board", async (req, res) => {
           content: [
             {
               type: "text",
-              text: "Read this screenshot and return the board and rack JSON. Pay special attention to the small letters on the 15x15 grid, count every visible rack tile from left to right, then perform a final I-versus-T check. Make sure no warning contradicts the returned board or rack.",
+              text: "Read tile coordinates from the FIRST, numbered board image. For each tile use its column heading and row heading, including gaps between word groups. The SECOND image is only for the rack and glyph detail. Count every rack tile from left to right and perform the final I/T check.",
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${numberedBoard.image.toString("base64")}`,
+                detail: "high",
+              },
             },
             {
               type: "image_url",
@@ -303,7 +296,7 @@ router.post("/scan-board", async (req, res) => {
 
     const parsed = parseModelJson(content) as Record<string, unknown>;
     const initialResult: ScanResult = {
-      board: normalizeBoard(parsed.board),
+      board: parseBoardTiles(parsed.tiles),
       rack: normalizeRack(parsed.rack),
       confidence: normalizeConfidence(parsed.confidence),
       warnings: normalizeWarnings(parsed.warnings),
@@ -348,6 +341,10 @@ router.post("/scan-board", async (req, res) => {
 
     res.json(audit.result);
   } catch (error) {
+    if (error instanceof ScanGridError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     req.log?.error({ err: error }, "Wordfeud screenshot scan failed");
     res.status(502).json({
       error: "The screenshot could not be read. Please try a clearer Wordfeud screenshot.",

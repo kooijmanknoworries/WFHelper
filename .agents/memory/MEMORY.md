@@ -3,3 +3,6 @@
 - [Transitive security overrides](transitive-security-overrides.md) — validate patched leaf dependencies through their real parent consumer, not just the audit result.
 - [OpenAPI codegen with Zod 3](openapi-codegen-zod3.md) — avoid URI formats that generate Zod helpers unavailable in this workspace.
 - [Focused OCR fixtures](focused-ocr-fixtures.md) — test a reported glyph ambiguity without letting unrelated OCR errors obscure that regression.
+- [Local scanner provider isolation](local-scanner-provider-isolation.md) — a scanner-only container must not initialize cloud-only image clients at startup.
+- [Scan count policy](scan-count-policy.md) — the user wants no per-device or per-IP scan-count cap.
+- [OCR grid anchoring](ocr-grid-anchoring.md) — use visible coordinate references; verify positional fixes on the original image, not just a consensus fixture.
