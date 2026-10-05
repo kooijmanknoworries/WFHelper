@@ -45,7 +45,10 @@ if (process.env.SELF_HOST_WEB_DIR) {
     throw new Error(`Self-hosted web export is missing: ${indexFile}`);
   }
 
-  app.use(express.static(webDir));
+  // Expo web export places node-module assets (fonts, icon fonts, audio) under
+  // an `assets/__node_modules/.pnpm/...` virtual-store path. serve-static's
+  // default `dotfiles: "ignore"` would 404 that `.pnpm` segment, so allow it.
+  app.use(express.static(webDir, { dotfiles: "allow" }));
   app.use((req, res, next) => {
     if (
       req.method !== "GET" ||
