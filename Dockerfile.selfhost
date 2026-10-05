@@ -5,6 +5,9 @@ RUN npm install --global pnpm@10.26.1
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @workspace/api-server run build
+# The API bundle externalizes native/optional deps (notably sharp). pnpm deploy
+# materializes a production-only node_modules (current platform) for runtime.
+RUN pnpm --filter @workspace/api-server deploy --prod --legacy /workspace/api-runtime
 RUN pnpm --filter @workspace/crosslex exec expo export --platform web --output-dir /workspace/selfhost-web
 
 FROM node:24-bookworm-slim
@@ -14,7 +17,9 @@ ENV NODE_ENV=production \
     SELF_HOST_WEB_DIR=/srv/wordfeud-helper/web
 
 WORKDIR /srv/wordfeud-helper
-COPY --from=builder /workspace/artifacts/api-server/dist ./api
+COPY --from=builder /workspace/api-runtime/dist ./api
+COPY --from=builder /workspace/api-runtime/node_modules ./api/node_modules
+COPY --from=builder /workspace/api-runtime/package.json ./api/package.json
 COPY --from=builder /workspace/selfhost-web ./web
 
 USER node
