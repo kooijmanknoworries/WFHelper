@@ -2,8 +2,8 @@ import { Router, type IRouter } from "express";
 import {
   DUTCH_OPEN_DICTIONARY_META,
   DUTCH_OPEN_WORDS_TEXT,
-  OPEN_TAAL_LICENSE_TEXT,
-} from "../data/dutch-open-wordlist";
+} from "../lib/wordfeud-dictionary";
+import { OPEN_TAAL_LICENSE_TEXT } from "../data/dutch-open-wordlist";
 
 const router: IRouter = Router();
 const version = DUTCH_OPEN_DICTIONARY_META.version;

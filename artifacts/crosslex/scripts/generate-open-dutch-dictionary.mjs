@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { DUTCH_SITE_WORDS } from '../data/dutch-site-wordlist.ts';
+import { isAllowedDutchWordfeudWord } from '../../../lib/wordfeud-dutch-rules.ts';
 
 const openTaalRepo = 'OpenTaal/opentaal-wordlist';
 const targetedAcceptedWords = ['AZE', 'CES', 'ES', 'ZES'];
@@ -108,7 +109,7 @@ for (const item of verification) {
     words.delete(item.word);
   }
 }
-const sortedWords = [...words].sort();
+const sortedWords = [...words].filter(isAllowedDutchWordfeudWord).sort();
 const wordsText = sortedWords.join('\n');
 const retrievedAt = new Date().toISOString();
 const version = `${retrievedAt.slice(0, 10).replaceAll('-', '.')}.${retrievedAt

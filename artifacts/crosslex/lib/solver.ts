@@ -5,6 +5,7 @@ import {
   validateDutchDictionaryWords,
 } from './dictionary.ts';
 import { createClassicLayout, isPremiumLayout, type PremiumLayout, type PremiumLabel } from '../../../lib/wordfeud-layout.ts';
+import { isAllowedDutchWordfeudWord } from '../../../lib/wordfeud-dutch-rules.ts';
 export { createClassicLayout, isPremiumLayout, getLayoutMode } from '../../../lib/wordfeud-layout.ts';
 export type { PremiumLayout, PremiumLabel } from '../../../lib/wordfeud-layout.ts';
 export {
@@ -601,7 +602,7 @@ export function findBestMoves(
   if (words === undefined && !getDutchDictionaryStatus().ready) {
     throw new Error(`Dutch dictionary failed to load: ${getDutchDictionaryStatus().error}`);
   }
-  const dictionary = new Set(selectedWords.map((word) => word.toUpperCase()));
+  const dictionary = new Set(selectedWords.map((word) => word.toUpperCase()).filter(isAllowedDutchWordfeudWord));
   const rackCounts = new Map<string, number>();
   for (const letter of rack.toUpperCase().replace(/[^A-Z?]/g, '')) {
     rackCounts.set(letter, (rackCounts.get(letter) ?? 0) + 1);

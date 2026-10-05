@@ -5,6 +5,7 @@ import {
   DUTCH_SITE_WORDS,
 } from '../data/dutch-site-wordlist.ts';
 import { sha256Ascii } from './sha256.ts';
+import { isAllowedDutchWordfeudWord } from '../../../lib/wordfeud-dutch-rules.ts';
 
 const DICTIONARY_CACHE_KEY = '@crosslex/dutch-dictionary-cache';
 const BUNDLED_DICTIONARY_VERSION = DUTCH_SITE_DICTIONARY_META.version;
@@ -53,7 +54,7 @@ const VERIFIED_WORDFEUD_DUTCH_ADDITIONS = ['AZE'] as const;
 
 export const DUTCH_WORDS = [
   ...new Set([...DUTCH_SITE_WORDS, ...VERIFIED_WORDFEUD_DUTCH_ADDITIONS]),
-].sort();
+].filter(isAllowedDutchWordfeudWord).sort();
 
 export const BUNDLED_DUTCH_DICTIONARY_MANIFEST: DutchDictionaryManifest = {
   version: BUNDLED_DICTIONARY_VERSION,
@@ -203,7 +204,7 @@ function statusForManifest(
 ): DutchDictionaryStatus {
   return {
     ready: true,
-    wordCount: manifest.wordCount,
+    wordCount: activeWords.length,
     version: manifest.version,
     source: manifest.source,
     sourceUrl: manifest.sourceUrl,
@@ -260,7 +261,9 @@ async function fetchJson(url: string) {
 }
 
 function activatePack(pack: DutchDictionaryPack) {
-  activeWords = pack.words;
+  // Verify the original pack first, then enforce gameplay corrections even
+  // when loading a previously cached pack that still contains rejected words.
+  activeWords = pack.words.filter(isAllowedDutchWordfeudWord);
   activeManifest = pack.manifest;
 }
 

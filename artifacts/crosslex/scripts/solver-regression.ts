@@ -16,7 +16,11 @@ import {
   DUTCH_SITE_DICTIONARY_META,
   DUTCH_SITE_WORDS,
 } from '../data/dutch-site-wordlist.ts';
-import { DUTCH_OPEN_WORDS_TEXT } from '../../api-server/src/data/dutch-open-wordlist.ts';
+import { DUTCH_OPEN_WORDS_TEXT, DUTCH_OPEN_DICTIONARY_META } from '../../api-server/src/lib/wordfeud-dictionary.ts';
+import { DUTCH_OPEN_WORDS_TEXT as uncorrectedWordsText } from '../../api-server/src/data/dutch-open-wordlist.ts';
+import { sha256Ascii } from '../lib/sha256.ts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getActiveDutchWords, initializeDutchDictionary, BUNDLED_DUTCH_DICTIONARY_MANIFEST } from '../lib/dictionary.ts';
 
 type ExpectedMove = {
   word: string;
@@ -81,7 +85,7 @@ const expectedPageCounts = [
 ];
 assert(dictionaryStatus.ready, 'The published A-Z dictionary must load successfully.');
 assert(
-  dictionaryStatus.wordCount === 3942 && DUTCH_SITE_DICTIONARY_META.sourcePages.length === 26,
+  dictionaryStatus.wordCount === DUTCH_WORDS.length && DUTCH_SITE_DICTIONARY_META.sourcePages.length === 26,
   'The generated dictionary must include all 26 published A-Z pages.',
 );
 assert(
@@ -123,6 +127,49 @@ assert(
 );
 
 const openDutchWords = DUTCH_OPEN_WORDS_TEXT.split('\n');
+assert(openDutchWords.length === DUTCH_OPEN_DICTIONARY_META.wordCount, 'Corrected pack count must match its manifest.');
+assert(sha256Ascii(DUTCH_OPEN_WORDS_TEXT) === DUTCH_OPEN_DICTIONARY_META.dictionarySha256, 'Corrected pack checksum must match its manifest.');
+for (const rejected of ['ET', 'RI']) {
+  assert(!dictionaryWords.has(rejected), `${rejected} must be excluded from the offline dictionary.`);
+  assert(!openDutchWords.includes(rejected), `${rejected} must be excluded from the downloadable dictionary.`);
+  assert(findBestMoves(createEmptyBoard(), rejected, [rejected], 100).length === 0, `${rejected} cannot be suggested as a main word.`);
+  // Prove that a valid main word is blocked only when it creates the rejected
+  // crossing, including with a stale dictionary explicitly containing it.
+  const crossingBoard = createEmptyBoard();
+  crossingBoard[6][8] = rejected[1];
+  const validMainWord = rejected === 'ET' ? 'BEER' : 'BERE';
+  const placement = { word: validMainWord, row: 5, col: 6, direction: 'H' as const };
+  const staleWords = [validMainWord, rejected];
+  assert(!containsMove(findBestMoves(crossingBoard, validMainWord, staleWords, 100), placement), `${rejected} must invalidate cross-words from a stale pack.`);
+  crossingBoard[6][8] = rejected === 'ET' ? 'N' : 'E';
+  assert(containsMove(findBestMoves(crossingBoard, validMainWord, [validMainWord, rejected === 'ET' ? 'EN' : 'RE'], 100), placement), 'Crossing fixture must permit the same placement when the crossing is allowed.');
+}
+assert(!findBestMoves(createEmptyBoard(), 'ETRI', uncorrectedWordsText.split('\n'), 100)
+  .some(move => move.word === 'ET' || move.word === 'RI'), 'Stale downloaded lists must not reintroduce rejected main words.');
+
+// Reconstruct the 64 scanned tiles in the reported screenshot, before the
+// orange BEZEER preview. That move creates ET and RI underneath its last tiles.
+const rejectedCrossingScreenshot = createEmptyBoard();
+for (const [row, col, word] of [
+  [0, 4, 'D'], [0, 10, 'A'],
+  [1, 4, 'R'], [1, 9, 'KLUNST'],
+  [2, 4, 'E'], [2, 10, 'G'], [2, 13, 'N'],
+  [3, 3, 'PUF'], [3, 13, 'O'],
+  [4, 4, 'M'], [4, 10, 'WAMDE'],
+  [5, 4, 'E'], [5, 9, 'PO'], [5, 13, 'E'],
+  [6, 4, 'STIETEN'], [6, 12, 'R'],
+  [7, 3, 'L'], [7, 7, 'HONDSER'],
+  [8, 2, 'BIG'], [8, 8, 'ETE'], [8, 12, 'X'],
+  [9, 3, 'JENNEN'], [10, 0, 'VLEK'],
+  [11, 3, 'T'], [12, 2, 'DEUN'],
+] as const) {
+  for (let i = 0; i < word.length; i++) rejectedCrossingScreenshot[row][col + i] = word[i];
+}
+assert(rejectedCrossingScreenshot.flat().filter(Boolean).length === 64, 'Reported screenshot must reconstruct all 64 source tiles.');
+assert(!containsMove(
+  findBestMoves(rejectedCrossingScreenshot, 'ABEERSZ', ['BEZEER', 'ET', 'RI'], 100),
+  { word: 'BEZEER', row: 5, col: 1, direction: 'H' },
+), 'The reported BEZEER move must be rejected because it forms ET and RI.');
 assert(
   openDutchWords.length > 290_000,
   'The licensed OpenTaal pack must contain its full filtered base.',
@@ -427,5 +474,21 @@ assert(
   JSON.stringify(alternatePreview.board) !== JSON.stringify(bestPreview.board),
   'Selecting a different alternative must replace the previous board preview.',
 );
+
+const cachedWords = ['AT', 'ET', 'RI'];
+const cacheVersion = BUNDLED_DUTCH_DICTIONARY_MANIFEST.version.split('.');
+cacheVersion[cacheVersion.length - 1] = String(Number(cacheVersion.at(-1)) + 100);
+await AsyncStorage.setItem('@crosslex/dutch-dictionary-cache', JSON.stringify({
+  manifest: {
+    ...BUNDLED_DUTCH_DICTIONARY_MANIFEST,
+    version: cacheVersion.join('.'),
+    wordCount: cachedWords.length,
+    dictionarySha256: sha256Ascii(cachedWords.join('\n')),
+  },
+  words: cachedWords,
+}));
+await initializeDutchDictionary();
+assert(getActiveDutchWords().join(',') === 'AT', 'Loading a valid old cache must remove ET and RI while retaining AT.');
+assert(getDutchDictionaryStatus().wordCount === 1, 'Cached dictionary status must count only playable entries.');
 
 console.log('Solver regression checks passed.');
