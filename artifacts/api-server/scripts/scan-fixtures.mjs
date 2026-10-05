@@ -144,6 +144,16 @@ try {
 
 function compareFixture(fixture, scan) {
   const mismatches = [];
+  if (fixture.expected.layoutMode && scan.layoutMode !== fixture.expected.layoutMode) {
+    mismatches.push(`layout: expected ${fixture.expected.layoutMode}, received ${scan.layoutMode}`);
+  }
+  if (fixture.expected.premiums) {
+    for (let row = 0; row < 15; row++) for (let col = 0; col < 15; col++) {
+      if (scan.premiums?.[row]?.[col] !== fixture.expected.premiums[row][col]) {
+        mismatches.push(`bonus R${row + 1}C${col + 1}: expected ${fixture.expected.premiums[row][col] || "none"}, received ${scan.premiums?.[row]?.[col]}`);
+      }
+    }
+  }
   const actualBoard = Array.isArray(scan.board) ? scan.board : [];
   const compareEntireBoard = fixture.comparison !== "it-vw-and-rack";
 
@@ -320,6 +330,12 @@ function consensusScan(scans, requiredVotes) {
   return {
     board,
     rack,
+    layoutMode: majorityValue(scans.map(scan => scan.layoutMode), requiredVotes),
+    premiums: Array.from({ length: 15 }, (_, row) =>
+      Array.from({ length: 15 }, (_, col) =>
+        majorityValue(scans.map(scan => scan.premiums?.[row]?.[col]), requiredVotes),
+      ),
+    ),
     confidence: confidences[Math.floor(confidences.length / 2)] ?? 0,
   };
 }

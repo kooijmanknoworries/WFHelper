@@ -6,3 +6,4 @@
 - [Local scanner provider isolation](local-scanner-provider-isolation.md) — a scanner-only container must not initialize cloud-only image clients at startup.
 - [Scan count policy](scan-count-policy.md) — the user wants no per-device or per-IP scan-count cap.
 - [OCR grid anchoring](ocr-grid-anchoring.md) — use visible coordinate references; verify positional fixes on the original image, not just a consensus fixture.
+- [Wordfeud random layouts](wordfeud-random-layout.md) — random mode needs the screenshot's bonuses for scoring; covered bonuses must not be invented.

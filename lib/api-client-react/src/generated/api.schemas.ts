@@ -24,7 +24,35 @@ export interface ScanBoardInput {
   mimeType: ScanBoardInputMimeType;
 }
 
+export type ScanBoardResultPremiumsItemItem = typeof ScanBoardResultPremiumsItemItem[keyof typeof ScanBoardResultPremiumsItemItem];
+
+
+export const ScanBoardResultPremiumsItemItem = {
+  '': '',
+  '2L': '2L',
+  '3L': '3L',
+  '2W': '2W',
+  '3W': '3W',
+  '★': '★',
+} as const;
+
+export type ScanBoardResultLayoutMode = typeof ScanBoardResultLayoutMode[keyof typeof ScanBoardResultLayoutMode];
+
+
+export const ScanBoardResultLayoutMode = {
+  classic: 'classic',
+  random: 'random',
+} as const;
+
 export interface ScanBoardResult {
+  /**
+     * @minItems 15
+     * @maxItems 15
+     * @items.minItems 15
+     * @items.maxItems 15
+     */
+  premiums: ScanBoardResultPremiumsItemItem[][];
+  layoutMode: ScanBoardResultLayoutMode;
   /**
      * @minItems 15
      * @maxItems 15

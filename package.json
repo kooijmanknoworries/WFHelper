@@ -7,7 +7,7 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "validate:release": "pnpm run typecheck && pnpm --filter @workspace/api-server run test:scan-layout && pnpm --filter @workspace/api-server run eval:scan-fixtures"
+    "validate:release": "pnpm run typecheck && pnpm --filter @workspace/crosslex run test:solver && pnpm --filter @workspace/api-server run test:scan-layout && pnpm --filter @workspace/api-server run eval:scan-fixtures"
   },
   "private": true,
   "dependencies": {

@@ -40,6 +40,11 @@ import {
   findBestMoves,
   getLetterValue,
   getPremiumLabel,
+  createClassicLayout,
+  getLayoutMode,
+  isPremiumLayout,
+  type PremiumLayout,
+  type PremiumLabel,
   Move,
 } from '@/lib/solver';
 
@@ -64,6 +69,7 @@ type VWAmbiguousTile = {
 };
 
 type VWReviewScan = {
+  premiums: PremiumLayout;
   board: Board;
   rack: string;
   confidence: number;
@@ -307,7 +313,9 @@ function getVWReviewError(error: unknown): VWReviewError | null {
     !('confidence' in scan) ||
     typeof scan.confidence !== 'number' ||
     !('warnings' in scan) ||
-    !Array.isArray(scan.warnings)
+    !Array.isArray(scan.warnings) ||
+    !('premiums' in scan) ||
+    !isPremiumLayout(scan.premiums)
   ) {
     return null;
   }
@@ -353,6 +361,7 @@ function LogoMark({ colors }: { colors: ReturnType<typeof useColors> }) {
 
 function BoardPreview({
   board,
+  premiums,
   highlightedMove,
   highlightBaseBoard,
   selectedCell,
@@ -361,6 +370,7 @@ function BoardPreview({
   colors,
 }: {
   board: Board;
+  premiums: PremiumLayout;
   highlightedMove: Move | null;
   highlightBaseBoard: Board | null;
   selectedCell: { row: number; col: number } | null;
@@ -390,7 +400,7 @@ function BoardPreview({
               );
             const isSelected =
               selectedCell?.row === rowIndex && selectedCell.col === colIndex;
-            const premium = getPremiumLabel(rowIndex, colIndex);
+            const premium = getPremiumLabel(rowIndex, colIndex, premiums);
             const premiumBackground =
               premium === '★'
                 ? colors.center
@@ -610,6 +620,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const rewardPlayer = useAudioPlayer(require('../assets/reward-pop.wav'));
   const [board, setBoard] = useState<Board>(createEmptyBoard);
+  const [premiums, setPremiums] = useState<PremiumLayout>(createClassicLayout);
   const [rack, setRack] = useState('AARTE?');
   const [editingBoard, setEditingBoard] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
@@ -632,9 +643,10 @@ export default function HomeScreen() {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((stored) => {
         if (!stored) return;
-        const saved = JSON.parse(stored) as { board?: Board; rack?: string };
+        const saved = JSON.parse(stored) as { board?: Board; rack?: string; premiums?: unknown };
         if (saved.board) setBoard(saved.board);
         if (saved.rack) setRack(saved.rack);
+        if (isPremiumLayout(saved.premiums)) setPremiums(saved.premiums);
       })
       .catch(() => undefined);
   }, []);
@@ -744,7 +756,7 @@ export default function HomeScreen() {
       nextRack = rackLetters.join('');
       setRack(nextRack);
     }
-    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack })).catch(
+    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack, premiums })).catch(
       () => undefined,
     );
     setResults([]);
@@ -818,6 +830,8 @@ export default function HomeScreen() {
       );
       const scannedBoard = scan.board as Board;
       const scannedRack = scan.rack;
+      if (!isPremiumLayout(scan.premiums)) throw new Error(t('layoutReadError'));
+      const scannedPremiums = scan.premiums;
       const detectedBoardTiles = scannedBoard.reduce(
         (total, row) => total + row.filter(Boolean).length,
         0,
@@ -832,13 +846,14 @@ export default function HomeScreen() {
         needsRackReview: rackNeedsReview,
       });
       setBoard(scannedBoard);
+      setPremiums(scannedPremiums);
       setRack(scannedRack);
       setSuggestionSession({ board: scannedBoard, rack: scannedRack });
       setEditingBoard(false);
       setSelectedCell(null);
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ board: scannedBoard, rack: scannedRack }),
+        JSON.stringify({ board: scannedBoard, rack: scannedRack, premiums: scannedPremiums }),
       );
       setIsImporting(false);
 
@@ -852,11 +867,11 @@ export default function HomeScreen() {
       setIsSolving(true);
       try {
         await checkDutchDictionaryForUpdates();
-        const scannedResults = findBestMoves(scannedBoard, scannedRack);
+        const scannedResults = findBestMoves(scannedBoard, scannedRack, undefined, 8, scannedPremiums);
         const preview = beginSuggestionSession(scannedBoard, scannedRack, scannedResults);
         await AsyncStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ board: preview.board, rack: preview.rack }),
+          JSON.stringify({ board: preview.board, rack: preview.rack, premiums: scannedPremiums }),
         );
         if (scannedResults[0]) {
           await celebrateMove(scannedResults[0]);
@@ -876,11 +891,13 @@ export default function HomeScreen() {
       if (vwReview) {
         const scannedBoard = vwReview.scan.board;
         const scannedRack = vwReview.scan.rack;
+        const scannedPremiums = vwReview.scan.premiums;
         const detectedBoardTiles = scannedBoard.reduce(
           (total, row) => total + row.filter(Boolean).length,
           0,
         );
         setBoard(scannedBoard);
+        setPremiums(scannedPremiums);
         setRack(scannedRack);
         setScanInfo({
           confidence: vwReview.scan.confidence,
@@ -893,7 +910,7 @@ export default function HomeScreen() {
         setScanError(t('vwReviewRequired', vwReview.ambiguousTiles.length));
         await AsyncStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ board: scannedBoard, rack: scannedRack }),
+          JSON.stringify({ board: scannedBoard, rack: scannedRack, premiums: scannedPremiums }),
         ).catch(() => undefined);
         return;
       }
@@ -922,11 +939,11 @@ export default function HomeScreen() {
       await checkDutchDictionaryForUpdates();
       const sourceBoard = suggestionSession?.board ?? board;
       const sourceRack = suggestionSession?.rack ?? rack;
-      const nextResults = findBestMoves(sourceBoard, sourceRack);
+      const nextResults = findBestMoves(sourceBoard, sourceRack, undefined, 8, premiums);
       const preview = beginSuggestionSession(sourceBoard, sourceRack, nextResults);
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ board: preview.board, rack: preview.rack }),
+        JSON.stringify({ board: preview.board, rack: preview.rack, premiums }),
       );
       if (nextResults[0]) await celebrateMove(nextResults[0]);
     } catch {
@@ -955,7 +972,7 @@ export default function HomeScreen() {
       setPlacedMove(move);
       setEditingBoard(false);
       setSelectedCell(null);
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack }));
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board: nextBoard, rack: nextRack, premiums }));
       await celebrateMove(move);
     } catch {
       setScanError(t('solverError'));
@@ -996,6 +1013,10 @@ export default function HomeScreen() {
   };
 
   const loadDemo = () => {
+    setPremiums(createClassicLayout());
+    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+      board: createSampleBoard(), rack: 'AARTE?', premiums: createClassicLayout(),
+    })).catch(() => undefined);
     setBoard(createSampleBoard());
     setRack('AARTE?');
     setScreenshotUri(null);
@@ -1012,6 +1033,7 @@ export default function HomeScreen() {
   };
 
   const clearScreen = async () => {
+    setPremiums(createClassicLayout());
     taalTikRequestRef.current += 1;
     setBoard(createEmptyBoard());
     setRack('');
@@ -1182,6 +1204,7 @@ export default function HomeScreen() {
 
           <BoardPreview
             board={board}
+            premiums={premiums}
               highlightedMove={editingBoard ? null : placedMove}
               highlightBaseBoard={suggestionSession?.board ?? null}
             selectedCell={selectedCell}
@@ -1189,6 +1212,36 @@ export default function HomeScreen() {
             onSelect={(row, col) => setSelectedCell({ row, col })}
             colors={colors}
           />
+
+          <Text testID="board-layout-mode" style={[styles.scanErrorText, { color: colors.mutedForeground, marginTop: 8 }]}>
+            {getLayoutMode(premiums) === 'random' ? t('randomLayout') : t('classicLayout')}
+          </Text>
+          {editingBoard && selectedCell && (
+            <View style={[styles.positionActions, { flexWrap: 'wrap', marginTop: 8 }]}>
+              <Text style={[styles.scanErrorText, { color: colors.mutedForeground }]}>{t('bonusSquare')}</Text>
+              {(['', '2L', '3L', '2W', '3W', '★'] as const).map(label => (
+                <Pressable key={label || 'none'}
+                  accessibilityLabel={`${t('bonusSquare')} ${label || t('noBonus')}`}
+                  onPress={() => {
+                    const next = premiums.map(row => [...row]);
+                    next[selectedCell.row][selectedCell.col] = label as PremiumLabel | '';
+                    setPremiums(next);
+                    setResults([]);
+                    setSelectedMove(null);
+                    setPlacedMove(null);
+                    setSuggestionSession(null);
+                    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ board, rack, premiums: next })).catch(() => undefined);
+                  }}
+                  style={[styles.clearButton, {
+                    backgroundColor: getPremiumLabel(selectedCell.row, selectedCell.col, premiums) === label
+                      ? colors.primary : colors.secondary,
+                  }]}>
+                  <Text style={{ color: getPremiumLabel(selectedCell.row, selectedCell.col, premiums) === label
+                    ? colors.primaryForeground : colors.foreground }}>{label || t('noBonus')}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           {vwReviewTargets.length > 0 && (
             <View style={[styles.vwReviewPanel, { backgroundColor: colors.secondary, borderColor: colors.border }]}>

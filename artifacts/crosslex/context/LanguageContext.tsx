@@ -51,6 +51,11 @@ const translations = {
       'Samengestelde deellijst van 2–12 letters. Dit is niet het volledige Wordfeud-woordenboek; geldige woorden buiten deze lijst kunnen ontbreken.',
     scoringRules: 'Score regels',
     wordfeudMultipliers: 'Wordfeud-bordvermenigvuldigers',
+    randomLayout: 'Willekeurig bonusbord · scores gebruiken dit bord',
+    classicLayout: 'Klassiek bonusbord',
+    bonusSquare: 'Bonusvak',
+    noBonus: 'Geen',
+    layoutReadError: 'Het bonusbord kon niet worden gelezen. Scan opnieuw voordat je zetten berekent.',
     scanInfo:
       'Wordfeud Helper leest screenshots om het bord en rekken te herkennen en controleert daarna elk woord dat door een zet ontstaat.',
     heroEyebrow: 'NEDERLANDSE WOORDENGINE · BÈTA',
@@ -182,6 +187,11 @@ const translations = {
       'Curated 2–12-letter subset. This is not the complete Wordfeud dictionary; valid words outside this list may be missing.',
     scoringRules: 'Scoring rules',
     wordfeudMultipliers: 'Wordfeud board multipliers',
+    randomLayout: 'Random bonus layout · scores use this board',
+    classicLayout: 'Classic bonus layout',
+    bonusSquare: 'Bonus square',
+    noBonus: 'None',
+    layoutReadError: 'The bonus layout could not be read. Scan again before calculating moves.',
     scanInfo:
       'Wordfeud Helper scans screenshots to recognize the board and rack, then validates every word created by the suggested move.',
     heroEyebrow: 'DUTCH WORD ENGINE · BETA',

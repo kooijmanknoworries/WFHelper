@@ -49,3 +49,7 @@ board.
 
 The randomized-premium fixture checks that grid detection does not depend on
 the classic bonus-square layout. Its FACIT tiles occupy row 8, columns 5–9.
+
+The empty-random-board fixture verifies all 225 bonus positions as well as its
+empty board and AEKFQEG rack. Bonus backgrounds are sampled directly from the
+numbered crop; played tiles are excluded because their bonuses are consumed.

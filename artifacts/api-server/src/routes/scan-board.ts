@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server/scan";
 import { parseBoardTiles } from "../lib/scan-board-layout";
 import { prepareNumberedBoard, ScanGridError } from "../lib/scan-board-image";
+import { readPremiumLayout } from "../lib/scan-board-premiums";
+import type { PremiumLayout } from "../../../../lib/wordfeud-layout";
 
 const router: IRouter = Router();
 const BOARD_SIZE = 15;
@@ -18,6 +20,8 @@ type ScanPayload = {
 };
 
 type ScanResult = {
+  premiums: PremiumLayout;
+  layoutMode: "classic" | "random";
   board: string[][];
   rack: string;
   confidence: number;
@@ -295,8 +299,10 @@ router.post("/scan-board", async (req, res) => {
     const firstPassDurationMs = Math.round(performance.now() - scanStartedAt);
 
     const parsed = parseModelJson(content) as Record<string, unknown>;
+    const board = parseBoardTiles(parsed.tiles);
     const initialResult: ScanResult = {
-      board: parseBoardTiles(parsed.tiles),
+      ...await readPremiumLayout(numberedBoard.image, board),
+      board,
       rack: normalizeRack(parsed.rack),
       confidence: normalizeConfidence(parsed.confidence),
       warnings: normalizeWarnings(parsed.warnings),

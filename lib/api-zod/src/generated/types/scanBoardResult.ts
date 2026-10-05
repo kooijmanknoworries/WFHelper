@@ -5,8 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ScanBoardResultLayoutMode } from './scanBoardResultLayoutMode';
+import type { ScanBoardResultPremiumsItemItem } from './scanBoardResultPremiumsItemItem';
 
 export interface ScanBoardResult {
+  /**
+     * @minItems 15
+     * @maxItems 15
+     * @items.minItems 15
+     * @items.maxItems 15
+     */
+  premiums: ScanBoardResultPremiumsItemItem[][];
+  layoutMode: ScanBoardResultLayoutMode;
   /**
      * @minItems 15
      * @maxItems 15

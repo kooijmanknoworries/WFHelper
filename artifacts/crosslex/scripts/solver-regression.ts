@@ -7,6 +7,7 @@ import {
   getDutchDictionaryStatus,
   getLetterValue,
   getPremiumLabel,
+  createClassicLayout,
   validateDutchDictionaryWords,
   type Board,
   type Direction,
@@ -49,7 +50,7 @@ function containsMove(moves: ReturnType<typeof findBestMoves>, expected: Expecte
 const expectedPremiums: Record<string, string> = {};
 for (const [label, coordinates] of Object.entries({
   '3W': ['0:4', '0:10', '4:0', '4:14', '10:0', '10:14', '14:4', '14:10'],
-  '2W': ['2:2', '2:12', '4:4', '4:10', '7:3', '7:11', '10:4', '10:10', '12:2', '12:12'],
+  '2W': ['2:2', '2:12', '3:7', '4:4', '4:10', '7:3', '7:11', '10:4', '10:10', '11:7', '12:2', '12:12'],
   '3L': [
     '0:0', '0:14', '1:5', '1:9', '3:3', '3:11', '5:1', '5:5', '5:9', '5:13',
     '9:1', '9:5', '9:9', '9:13', '11:3', '11:11', '13:5', '13:9', '14:0', '14:14',
@@ -218,6 +219,28 @@ const scoredCrossing = findBestMoves(scoringBoard, 'T', ['AT'], 20).find(
   (move) => move.word === 'AT' && move.row === 7 && move.col === 7 && move.direction === 'H',
 );
 assert(scoredCrossing?.score === 6, 'The score must include both the main word and AT crossing.');
+
+const randomLayout = createClassicLayout().map(row => row.map(() => '' as '' | '2L' | '3L' | '2W' | '3W' | '★'));
+randomLayout[7][7] = '★';
+randomLayout[7][8] = '3W';
+const randomCrossing = findBestMoves(scoringBoard, 'T', ['AT'], 20, randomLayout).find(
+  move => move.row === 7 && move.col === 7 && move.direction === 'H',
+);
+assert(randomCrossing?.score === 18, 'Random 3W must multiply both the main and crossing word.');
+randomLayout[7][8] = '3L';
+const letterCrossing = findBestMoves(scoringBoard, 'T', ['AT'], 20, randomLayout).find(
+  move => move.row === 7 && move.col === 7 && move.direction === 'H',
+);
+assert(letterCrossing?.score === 14, 'Random 3L must multiply the new letter in both words.');
+randomLayout[7][7] = '3W';
+assert(findBestMoves(scoringBoard, 'T', ['AT'], 20, randomLayout).find(
+  move => move.row === 7 && move.col === 7 && move.direction === 'H',
+)?.score === 14, 'A premium under an existing tile must not be reused.');
+randomLayout[7][7] = '★';
+randomLayout[7][8] = '';
+assert(findBestMoves(createEmptyBoard(), 'AT', ['AT'], 100, randomLayout)
+  .every(move => move.score === 3), 'The random centre anchor has no score multiplier.');
+assert(getPremiumLabel(7, 8, randomLayout) === '', 'Rendering must not fall back to a classic bonus on random neutral cells.');
 
 const zesReferenceRows = [
   '.......WONE....',

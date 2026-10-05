@@ -4,6 +4,7 @@ import { parseBoardTiles } from "../src/lib/scan-board-layout.ts";
 import { prepareNumberedBoard, ScanGridError } from "../src/lib/scan-board-image.ts";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
+import { readPremiumLayout } from "../src/lib/scan-board-premiums.ts";
 
 test("GE and right-edge LIJ preserve their separate columns and empty gaps", () => {
   const tiles = [
@@ -85,4 +86,19 @@ test("horizontal stripes without board columns fail instead of guessing a grid",
     `<svg width="400" height="800"><rect width="400" height="800" fill="#333333"/>${stripes}</svg>`,
   )).png().toBuffer();
   await assert.rejects(() => prepareNumberedBoard(image), ScanGridError);
+});
+
+test("every bonus on the empty randomized board matches the reviewed screenshot", async () => {
+  const base = new URL("../../../attached_assets/scan-fixtures/", import.meta.url);
+  const metadata = JSON.parse(await readFile(new URL("scan-fixtures.json", base), "utf8"));
+  const fixture = metadata.fixtures.find(f => f.id === "android-empty-random-board");
+  const prepared = await prepareNumberedBoard(await readFile(new URL(fixture.file, base)));
+  const result = await readPremiumLayout(prepared.image, Array.from({ length: 15 }, () => Array(15).fill("")));
+  assert.deepEqual(result.premiums, fixture.expected.premiums);
+  assert.equal(result.layoutMode, "random");
+  for (const fixture of metadata.fixtures.slice(0, 4)) {
+    const prepared = await prepareNumberedBoard(await readFile(new URL(fixture.file, base)));
+    const board = fixture.expected.board.map(row => [...row].map(cell => cell === "." ? "" : cell));
+    assert.equal((await readPremiumLayout(prepared.image, board)).layoutMode, "classic", fixture.id);
+  }
 });

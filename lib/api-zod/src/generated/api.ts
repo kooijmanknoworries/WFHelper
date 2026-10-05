@@ -25,6 +25,12 @@ export const ScanWordfeudBoardBody = zod.object({
   "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp'])
 })
 
+export const scanWordfeudBoardResponsePremiumsItemMin = 15;
+export const scanWordfeudBoardResponsePremiumsItemMax = 15;
+
+export const scanWordfeudBoardResponsePremiumsMin = 15;
+export const scanWordfeudBoardResponsePremiumsMax = 15;
+
 export const scanWordfeudBoardResponseBoardItemMin = 15;
 export const scanWordfeudBoardResponseBoardItemMax = 15;
 
@@ -37,6 +43,8 @@ export const scanWordfeudBoardResponseConfidenceMax = 1;
 
 
 export const ScanWordfeudBoardResponse = zod.object({
+  "premiums": zod.array(zod.array(zod.enum(['', '2L', '3L', '2W', '3W', '★'])).min(scanWordfeudBoardResponsePremiumsItemMin).max(scanWordfeudBoardResponsePremiumsItemMax)).min(scanWordfeudBoardResponsePremiumsMin).max(scanWordfeudBoardResponsePremiumsMax),
+  "layoutMode": zod.enum(['classic', 'random']),
   "board": zod.array(zod.array(zod.string()).min(scanWordfeudBoardResponseBoardItemMin).max(scanWordfeudBoardResponseBoardItemMax)).min(scanWordfeudBoardResponseBoardMin).max(scanWordfeudBoardResponseBoardMax),
   "rack": zod.string(),
   "confidence": zod.number().min(scanWordfeudBoardResponseConfidenceMin).max(scanWordfeudBoardResponseConfidenceMax),

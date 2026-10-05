@@ -4,6 +4,9 @@ import {
   getDutchDictionaryStatus,
   validateDutchDictionaryWords,
 } from './dictionary.ts';
+import { createClassicLayout, isPremiumLayout, type PremiumLayout, type PremiumLabel } from '../../../lib/wordfeud-layout.ts';
+export { createClassicLayout, isPremiumLayout, getLayoutMode } from '../../../lib/wordfeud-layout.ts';
+export type { PremiumLayout, PremiumLabel } from '../../../lib/wordfeud-layout.ts';
 export {
   DUTCH_WORDS,
   getDutchDictionaryStatus,
@@ -75,51 +78,10 @@ export function getLetterValue(letter: string): number {
   return LETTER_VALUES[letter.toUpperCase()] ?? 0;
 }
 
-export type PremiumLabel = '3L' | '2L' | '3W' | '2W' | '★';
-
 type Premium = {
   label: PremiumLabel;
   letterMultiplier?: number;
   wordMultiplier?: number;
-};
-
-const PREMIUM_COORDINATES: Record<Exclude<PremiumLabel, '★'>, string[]> = {
-  '3W': [
-    '0:4', '0:10',
-    '4:0', '4:14',
-    '10:0', '10:14',
-    '14:4', '14:10',
-  ],
-  '2W': [
-    '2:2', '2:12',
-    '4:4', '4:10',
-    '7:3', '7:11',
-    '10:4', '10:10',
-    '12:2', '12:12',
-  ],
-  '3L': [
-    '0:0', '0:14',
-    '1:5', '1:9',
-    '3:3', '3:11',
-    '5:1', '5:5', '5:9', '5:13',
-    '9:1', '9:5', '9:9', '9:13',
-    '11:3', '11:11',
-    '13:5', '13:9',
-    '14:0', '14:14',
-  ],
-  '2L': [
-    '0:7',
-    '1:1', '1:13',
-    '2:6', '2:8',
-    '4:6', '4:8',
-    '6:2', '6:4', '6:10', '6:12',
-    '7:0', '7:14',
-    '8:2', '8:4', '8:10', '8:12',
-    '10:6', '10:8',
-    '12:6', '12:8',
-    '13:1', '13:13',
-    '14:7',
-  ],
 };
 
 const PREMIUM_VALUES: Record<Exclude<PremiumLabel, '★'>, Premium> = {
@@ -129,21 +91,15 @@ const PREMIUM_VALUES: Record<Exclude<PremiumLabel, '★'>, Premium> = {
   '2L': { label: '2L', letterMultiplier: 2 },
 };
 
-const PREMIUMS: Record<string, Premium> = {
-  '7:7': { label: '★', wordMultiplier: 2 },
-};
-
-for (const [label, coordinates] of Object.entries(PREMIUM_COORDINATES) as [
-  Exclude<PremiumLabel, '★'>,
-  string[],
-][]) {
-  for (const coordinate of coordinates) {
-    PREMIUMS[coordinate] = PREMIUM_VALUES[label];
-  }
+const CLASSIC_LAYOUT = createClassicLayout();
+export function getPremiumLabel(row: number, col: number, layout: PremiumLayout = CLASSIC_LAYOUT): PremiumLabel | '' {
+  return layout[row]?.[col] ?? '';
 }
 
-export function getPremiumLabel(row: number, col: number): PremiumLabel | '' {
-  return PREMIUMS[`${row}:${col}`]?.label ?? '';
+function getPremium(row: number, col: number, layout: PremiumLayout) {
+  const label = getPremiumLabel(row, col, layout);
+  // The centre marker is an opening-move anchor, not a word multiplier.
+  return label && label !== '★' ? PREMIUM_VALUES[label] : undefined;
 }
 
 // A compact Dutch starter list keeps the first build fully offline. The
@@ -465,6 +421,7 @@ function scoreMove(
   col: number,
   direction: Direction,
   blankIndexes: number[],
+  layout: PremiumLayout,
 ) {
   const placementBoard = board.map((boardRow) => [...boardRow]);
   const newTiles: Array<{ row: number; col: number; letter: string; letterIndex: number }> = [];
@@ -475,7 +432,7 @@ function scoreMove(
 
   for (const [letterIndex, letter] of [...word].entries()) {
     if (!getCell(board, currentRow, currentCol)) {
-      const premium = PREMIUMS[`${currentRow}:${currentCol}`];
+      const premium = getPremium(currentRow, currentCol, layout);
       const value = blankIndexes.includes(letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
       mainScore += value * (premium?.letterMultiplier ?? 1);
       mainWordMultiplier *= premium?.wordMultiplier ?? 1;
@@ -509,7 +466,7 @@ function scoreMove(
     while (isInside(scanRow, scanCol) && getCell(placementBoard, scanRow, scanCol)) {
       const letter = getCell(placementBoard, scanRow, scanCol);
       if (scanRow === tile.row && scanCol === tile.col) {
-        const premium = PREMIUMS[`${scanRow}:${scanCol}`];
+        const premium = getPremium(scanRow, scanCol, layout);
         const value = blankIndexes.includes(tile.letterIndex) ? 0 : LETTER_VALUES[letter] ?? 0;
         wordScore += value * (premium?.letterMultiplier ?? 1);
         wordMultiplier *= premium?.wordMultiplier ?? 1;
@@ -637,7 +594,9 @@ export function findBestMoves(
   rack: string,
   words?: string[],
   limit = 8,
+  layout: PremiumLayout = CLASSIC_LAYOUT,
 ): Move[] {
+  if (!isPremiumLayout(layout)) throw new Error('Invalid Wordfeud bonus layout.');
   const selectedWords = words ?? getActiveDutchWords();
   if (words === undefined && !getDutchDictionaryStatus().ready) {
     throw new Error(`Dutch dictionary failed to load: ${getDutchDictionaryStatus().error}`);
@@ -733,6 +692,7 @@ export function findBestMoves(
           col,
           direction,
           rackResult.blankIndexes ?? [],
+          layout,
         ),
         direction,
         row,

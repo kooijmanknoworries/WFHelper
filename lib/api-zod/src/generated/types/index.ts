@@ -13,6 +13,8 @@ export * from './healthStatus';
 export * from './scanBoardInput';
 export * from './scanBoardInputMimeType';
 export * from './scanBoardResult';
+export * from './scanBoardResultLayoutMode';
+export * from './scanBoardResultPremiumsItemItem';
 export * from './vWAmbiguousTile';
 export * from './vWAmbiguousTileInitialLetter';
 export * from './vWAmbiguousTileKind';

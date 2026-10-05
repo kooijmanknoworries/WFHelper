@@ -118,6 +118,20 @@ components:
     ScanBoardResult:
       type: object
       properties:
+        premiums:
+          type: array
+          minItems: 15
+          maxItems: 15
+          items:
+            type: array
+            minItems: 15
+            maxItems: 15
+            items:
+              type: string
+              enum: ["", "2L", "3L", "2W", "3W", "★"]
+        layoutMode:
+          type: string
+          enum: [classic, random]
         board:
           type: array
           minItems: 15
@@ -139,6 +153,8 @@ components:
           items:
             type: string
       required:
+        - premiums
+        - layoutMode
         - board
         - rack
         - confidence
