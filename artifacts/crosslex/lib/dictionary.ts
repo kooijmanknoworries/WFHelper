@@ -6,6 +6,7 @@ import {
 } from '../data/dutch-site-wordlist.ts';
 import { sha256Ascii } from './sha256.ts';
 import { isAllowedDutchWordfeudWord } from '../../../lib/wordfeud-dutch-rules.ts';
+import { getDevBackend } from './dev-backend.ts';
 
 const DICTIONARY_CACHE_KEY = '@crosslex/dutch-dictionary-cache';
 const BUNDLED_DICTIONARY_VERSION = DUTCH_SITE_DICTIONARY_META.version;
@@ -226,6 +227,10 @@ function compareVersions(left: string, right: string) {
 }
 
 function getManifestUrl() {
+  // A development-only LAN backend (EXPO_PUBLIC_DEV_BACKEND_URL) serves both
+  // the scan API and dictionary updates from the same origin.
+  const devBackend = getDevBackend();
+  if (devBackend) return devBackend.manifestUrl;
   const configuredUrl = process.env.EXPO_PUBLIC_DICTIONARY_MANIFEST_URL;
   if (configuredUrl) return configuredUrl;
   const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -239,9 +244,19 @@ function getManifestUrl() {
 }
 
 function resolvePackUrl(manifestUrl: string, packUrl: string) {
-  const manifestOrigin = new URL(manifestUrl).origin;
+  const manifestUrlObject = new URL(manifestUrl);
+  const manifestOrigin = manifestUrlObject.origin;
   const resolved = new URL(packUrl, manifestUrl);
-  if (resolved.protocol !== 'https:') throw new Error('Dictionary pack URL must use HTTPS.');
+  // Production dictionary packs must use HTTPS. A development-only LAN
+  // backend (EXPO_PUBLIC_DEV_BACKEND_URL) may serve packs over HTTP on the
+  // local network; the same-origin check and checksum validation below still
+  // apply. Never relax this for a non-local backend.
+  const devBackend = getDevBackend();
+  const allowsHttp = devBackend?.isDevelopment === true &&
+    manifestUrlObject.origin === devBackend.url;
+  if (resolved.protocol !== 'https:' && !(allowsHttp && resolved.protocol === 'http:')) {
+    throw new Error('Dictionary pack URL must use HTTPS.');
+  }
   if (resolved.origin !== manifestOrigin) {
     throw new Error('Dictionary pack must use the trusted manifest origin.');
   }
@@ -327,7 +342,15 @@ export async function checkDutchDictionaryForUpdates() {
 
     publish({ ...status, updateState: 'checking', lastCheckedAt: checkedAt, error: undefined });
     try {
-      if (new URL(manifestUrl).protocol !== 'https:') {
+      const manifestProtocol = new URL(manifestUrl).protocol;
+      const devBackend = getDevBackend();
+      // Production manifest URLs must use HTTPS. A development-only LAN
+      // backend may use HTTP; production Replit/EXPO_PUBLIC_DOMAIN builds
+      // never produce an HTTP manifest URL, so this only affects dev builds.
+      if (
+        manifestProtocol !== 'https:' &&
+        !(devBackend?.isDevelopment === true && manifestUrl.startsWith(devBackend.url))
+      ) {
         throw new Error('Dictionary manifest URL must use HTTPS.');
       }
       const manifest = asManifest(await fetchJson(manifestUrl), true);

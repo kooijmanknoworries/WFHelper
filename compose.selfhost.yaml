@@ -10,7 +10,11 @@ services:
       SCAN_API_KEY: ${SCAN_API_KEY:-ollama}
       SCAN_MODEL: ${SCAN_MODEL:-qwen3.6:27b}
     ports:
-      - "127.0.0.1:${APP_PORT:-8787}:8080"
+      # APP_BIND selects the host interface for the published port. The
+      # default keeps it loopback-only (host Caddy route + health checks);
+      # set APP_BIND=0.0.0.0 to expose web+API on the LAN for browsers and
+      # Expo Go. Never publish the model API the same way.
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8787}:8080"
     networks:
       - caddy
     extra_hosts:

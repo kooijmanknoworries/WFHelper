@@ -30,7 +30,10 @@ Edit `.env.selfhost` (ignored by Git):
 | `SCAN_API_BASE_URL` | Model API URL **from inside the app container**, including `/v1`, for example `http://ollama:11434/v1`. |
 | `SCAN_API_KEY` | Required by the OpenAI client. Local Ollama ignores it, so `ollama` is a harmless placeholder; if using an authenticated server, set its actual credential locally and do not commit it. |
 | `SCAN_MODEL` | Exact model ID served by that endpoint; the Compose example uses `qwen3.6:27b`. |
-| `APP_PORT` | Loopback-only port for host-based Caddy and local health checks; default `8787`. |
+| `APP_PORT` | Port for host-based Caddy and local health checks; default `8787`. |
+| `APP_BIND` | Host interface for the published port. Default `127.0.0.1` (loopback only, for a host Caddy route). Set `0.0.0.0` to expose the web app and `/api/*` on your LAN for browsers and Expo Go. Never publish the model API the same way. |
+
+If your model server runs in Docker on the default `bridge` network, connect it to the shared network so its name resolves for the app: `docker network connect <CADDY_NETWORK> <model-container>`. Docker's embedded DNS only works on user-defined networks; `http://<container-name>:8080/v1` will not resolve if the containers are not on a common user-defined network.
 
 If Caddy runs on the host and no suitable Docker network exists, run `docker network create wfhelper-private` and set `CADDY_NETWORK=wfhelper-private`. This network is for the app and its model connection; host Caddy uses the loopback port instead of Docker DNS.
 
@@ -77,7 +80,21 @@ For **Caddy installed directly on the host**, use `reverse_proxy 127.0.0.1:8787`
 
 Restrict access to your LAN or add authentication in Caddy if you make the site reachable more widely. This app does **not** provide user accounts or impose a scan-count limit, so access control must be handled by your network or proxy. Unrestricted scan requests can consume GPU resources or incur charges when using a paid model endpoint. The app port is bound to host loopback by default, and Ollama must not be reverse-proxied publicly.
 
-## 5. Check actual scan quality
+## 5. Native Android app through Expo Go (development)
+
+The self-hosted container serves the **web** app. For the native app on a phone, run Metro on the machine that hosts the backend, in Expo Go/LAN mode:
+
+```sh
+pnpm install --frozen-lockfile
+EXPO_PUBLIC_DEV_BACKEND_URL=http://<host-LAN-IP>:<APP_PORT> \
+  pnpm --filter @workspace/crosslex run dev:local
+```
+
+`dev:local` starts `expo start --go --lan` on port 8081 (override with `EXPO_DEV_PORT`) with no Replit login, Replit domains, or proxy variables. Scan calls and dictionary updates both go to `EXPO_PUBLIC_DEV_BACKEND_URL`; the QR code advertises the machine's LAN address, so open it from a phone on the same network.
+
+HTTP is a development-only option: it is only accepted while `EXPO_PUBLIC_DEV_BACKEND_URL` is set (see `artifacts/crosslex/lib/dev-backend.ts`). Committed and production builds keep the HTTPS-only behaviour of `EXPO_PUBLIC_DOMAIN`, the same-origin pack check, and dictionary checksum validation. Prefer a trusted certificate (e.g. your Caddy hostname) if you can install it on the phone; do not assume Expo Go trusts an internal CA automatically. Never put model credentials in `EXPO_PUBLIC_*` variables.
+
+## 6. Check actual scan quality
 
 The app sends the original screenshot as an image to the configured vision server, then makes a second V/W verification request where needed. It asks for structured JSON (15×15 board plus rack) and expects image input, JSON-format responses, and enough output tokens. OpenAI-compatible implementations vary; in particular, check how your server handles `response_format`, `max_completion_tokens`, and image `detail`. An incomplete V/W audit safely asks for manual confirmation rather than silently solving the wrong board.
 

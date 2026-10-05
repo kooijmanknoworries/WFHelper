@@ -6,6 +6,7 @@ A Dutch-first mobile Wordfeud helper that ranks legal board moves and validates 
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm --filter @workspace/crosslex run dev` — run the Expo mobile app through its managed workflow
+- `EXPO_PUBLIC_DEV_BACKEND_URL=http://<LAN-IP>:8787 pnpm --filter @workspace/crosslex run dev:local` — run Metro in Expo Go/LAN mode (no Replit) against a self-hosted backend; see SELF_HOSTING.md
 - `pnpm --filter @workspace/crosslex run typecheck` — check the mobile app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages

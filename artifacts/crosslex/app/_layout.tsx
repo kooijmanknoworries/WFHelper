@@ -17,12 +17,17 @@ import { setBaseUrl } from '@workspace/api-client-react';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { FeedbackSettingsProvider } from '@/context/FeedbackSettingsContext';
 import { checkDutchDictionaryForUpdates, initializeDutchDictionary } from '@/lib/solver';
+import { getDevBackend } from '@/lib/dev-backend';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
-setBaseUrl(apiDomain ? `https://${apiDomain}` : null);
+// Development builds may point at a LAN backend over HTTP via
+// EXPO_PUBLIC_DEV_BACKEND_URL. Production/Replit builds never set it and keep
+// the HTTPS-only EXPO_PUBLIC_DOMAIN behaviour.
+const devBackend = getDevBackend();
+const apiDomain = devBackend ? null : process.env.EXPO_PUBLIC_DOMAIN;
+setBaseUrl(devBackend?.url ?? (apiDomain ? `https://${apiDomain}` : null));
 
 const queryClient = new QueryClient();
 

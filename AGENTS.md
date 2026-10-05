@@ -25,6 +25,7 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 - The published pages are curated lists, not an export of Wordfeud's proprietary Dutch dictionary; the UI identifies the active list as a subset.
 - A settings screen includes a persisted app-language selector with Dutch as the default and English as the second option, alongside dictionary/scoring details.
 - The brand mark is two adjacent letter tiles: W with a 5 in the upper-right and H with a 4 in the upper-right.
+- A self-hosted browser build (web export + API in one container) and a native Expo Go dev flow are supported. `dev:local` runs Metro in Expo Go/LAN mode with no Replit; `EXPO_PUBLIC_DEV_BACKEND_URL` points a development build at a LAN backend over HTTP (development-only — production stays HTTPS-only). See `artifacts/crosslex/lib/dev-backend.ts` and `SELF_HOSTING.md`.
 
 ## Source map
 
@@ -33,6 +34,7 @@ The product name is **Wordfeud Helper**. The target GitHub repository is **WFHel
 - `artifacts/crosslex/lib/solver.ts` — board model, dictionary, legality checks, and scoring.
 - `artifacts/crosslex/constants/colors.ts` — Wordfeud Helper visual tokens.
 - `artifacts/crosslex/assets/images/icon.png` — app icon.
+- `artifacts/crosslex/lib/dev-backend.ts` — development-only LAN backend config (`EXPO_PUBLIC_DEV_BACKEND_URL`); HTTP allowed only for dev, production stays HTTPS.
 - `replit.md` — collaborator-visible project overview and operating commands.
 
 ## Product decisions

@@ -5,6 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "sh -c 'if [ -n \"$REPLIT_EXPO_SESSION_SECRET\" ]; then pnpm exec create-launch login --session \"$REPLIT_EXPO_SESSION_SECRET\" || true; fi' && EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
+    "dev:local": "sh -c 'if [ -z \"$EXPO_PUBLIC_DEV_BACKEND_URL\" ]; then echo \"dev:local requires EXPO_PUBLIC_DEV_BACKEND_URL (e.g. http://192.168.1.85:8787)\" >&2; exit 1; fi; pnpm exec expo start --go --lan --port ${EXPO_DEV_PORT:-8081}'",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "generate:dictionary": "node scripts/generate-dutch-site-dictionary.mjs",
