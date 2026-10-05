@@ -46,3 +46,6 @@ or prompt regressions before release.
 
 Coordinates in reports are one-based for easy comparison with the visible
 board.
+
+The randomized-premium fixture checks that grid detection does not depend on
+the classic bonus-square layout. Its FACIT tiles occupy row 8, columns 5–9.

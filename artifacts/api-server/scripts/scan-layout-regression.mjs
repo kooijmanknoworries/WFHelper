@@ -55,6 +55,7 @@ test("grid numbering uses all 15 rows, including screenshots cropped near the to
     ["android-light-board-rack.jpg", 0, 632, 1080],
     ["android-wordfeud-i-rack.jpg", 0, 43, 1080],
     ["android-right-edge-lij-layout.jpg", 0, 632, 1080],
+    ["android-randomized-premium-board.jpg", 0, 632, 1080],
   ];
   for (const [file, left, top, size] of cases) {
     const image = await readFile(new URL(`../../../attached_assets/scan-fixtures/${file}`, import.meta.url));
@@ -73,5 +74,15 @@ test("unknown portrait geometry fails instead of guessing a board crop", async (
   const image = await sharp({ create: {
     width: 400, height: 800, channels: 3, background: "#333333",
   } }).png().toBuffer();
+  await assert.rejects(() => prepareNumberedBoard(image), ScanGridError);
+});
+
+test("horizontal stripes without board columns fail instead of guessing a grid", async () => {
+  const stripes = Array.from({ length: 16 }, (_, i) =>
+    `<rect x="0" y="${200 + i * 26}" width="400" height="2" fill="white"/>`,
+  ).join("");
+  const image = await sharp(Buffer.from(
+    `<svg width="400" height="800"><rect width="400" height="800" fill="#333333"/>${stripes}</svg>`,
+  )).png().toBuffer();
   await assert.rejects(() => prepareNumberedBoard(image), ScanGridError);
 });

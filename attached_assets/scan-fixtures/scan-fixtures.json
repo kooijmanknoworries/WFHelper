@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "evaluation": {
     "initialSamples": 3,
     "tieBreakerSamples": 2
@@ -115,6 +115,34 @@
           "..............."
         ],
         "rack": "LMSASRO",
+        "minConfidence": 0.9
+      }
+    },
+    {
+      "id": "android-randomized-premium-board",
+      "file": "android-randomized-premium-board.jpg",
+      "mimeType": "image/jpeg",
+      "source": "anonymized-original",
+      "reviewed": true,
+      "expected": {
+        "board": [
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "....FACIT......",
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "...............",
+          "..............."
+        ],
+        "rack": "DNGUDHR",
         "minConfidence": 0.9
       }
     }

@@ -14,3 +14,9 @@ Verify a positional fix against the original uploaded screenshot as well as its 
 **Why:** The anonymized fixture passed majority-consensus evaluation while a live scan of the original screenshot still misplaced the tiles. A consensus pass can hide individual scan failures.
 
 **How to apply:** Check the actual reported cells in an original-image live scan before claiming the issue fixed. Keep only anonymized images in permanent fixtures and shared repositories.
+
+Board localization must be independent of premium-square placement.
+
+**Why:** Wordfeud supports randomized bonus layouts. A fixed classic-layout matcher rejected a clear screenshot with a randomized layout before OCR could read it.
+
+**How to apply:** Use repeated grid geometry on both axes to locate the board, retain numbered coordinate references, and cover both classic and randomized layouts in regression fixtures.
